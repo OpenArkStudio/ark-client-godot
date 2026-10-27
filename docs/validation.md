@@ -27,6 +27,7 @@ SDK `8.0.427`; a normal .NET 8 SDK supplies the required runtime and reference p
 | Cleanup | Both owned server instances exited normally; all 26 owned child processes exited and were reaped |
 | Hosted client checks | [Run 40452878174](https://github.com/OpenArkStudio/ark-client-godot/actions/runs/40452878174) passed all three OS jobs at the runtime revision above; Linux also built/imported/ran the offline Godot scene |
 | Rendered interface | The engine exported its own viewport during the real two-client smoke. The village, YOU/PLAYER markers, populated HP/MP bars and action controls were inspected. Manual clicks on the new controls remain outside this check |
+| Local manual review | On 2026-10-27, the maintainer reported no issues after trying the server and two visible Godot clients for movement synchronization, HP/MP changes and reconnecting. This is a manual review, separate from the automated results above |
 
 The server is the actual ark launcher with Net, Bus, Utility, Kernel and the
 room plugin, rather than a replacement TCP server. Each smoke pair requires

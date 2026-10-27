@@ -1,54 +1,76 @@
 # ark-client-godot
 
-基于 Godot C# 的 OpenArkStudio [ark](https://github.com/OpenArkStudio/ark) 客户端。
-加入共享二维访客房间后，可使用 WASD 或方向键移动，并在断线后以新访客身份重新加入。
-玩家位置和房间成员列表以服务端快照为准。
-HP/MP 条以及 **Take hit**、**Use skill**、**Rest** 按钮演示服务端拥有的业务属性。
-点击按钮仅提议动作；只有确认快照能改变数值或产生浮动增减反馈。动作拒绝不会断开房间。
+**基于 Godot 与 C# 的 [ark](https://github.com/OpenArkStudio/ark) 二维联机演示。**
 
-[English](README.md)
+[English](README.md) · [简体中文](README_CN.md) · [运行指南](docs/run_CN.md) · [数据同步](docs/data-sync_CN.md)
 
-![真实双客户端房间、玩家身份标记与服务端 HP/MP](docs/images/room.png)
+![两个访客在村庄中互动，展示玩家身份标记与同步的 HP/MP](docs/images/room.png)
 
-## 运行
+用两个客户端共同探索村庄，观察输入如何成为服务端维护的状态。一起移动、改变 HP/MP、断线重连，也可以展开面板查看场景背后的网络消息。
 
-前置条件：Godot **4.7.2 .NET**、**.NET 8 SDK**，以及配套的 **ARK2** ark `guest_room` 示例服务端。
-必须同时升级两端；旧 ARK1 客户端或服务端会被拒绝。
-标准版 Godot 编辑器不能构建本 C# 项目。本示例使用桌面端原始 TCP，不面向 Web 导出。
+| 演示内容 | 可以观察到什么 |
+| --- | --- |
+| 共享房间 | 访客加入与离开、成员列表同步、服务端确认的位置 |
+| 玩家身份 | 自己使用 **YOU**、菱形与双地面环；其他玩家使用 **PLAYER** 与空心标记 |
+| HP 与 MP | 服务端校验动作、数值条以及确认后的属性变化反馈 |
+| 连接恢复 | 可见的连接状态、有次数限制的重试、重新连接后的新访客会话 |
+| 网络诊断 | 应用 RTT、帧与字节统计、序号、提议位置与确认位置对照 |
+
+## 本地体验
+
+需要准备：
+
+- **Godot 4.7.2 .NET**：标准版编辑器无法运行此 C# 项目。
+- **.NET 8 SDK**。
+- 配套的 ark **ARK2** [`guest_room` 服务端](https://github.com/OpenArkStudio/ark/tree/main/examples/guest_room)，监听 `127.0.0.1:19100`。请先按其说明构建并启动，无需数据库或 Registry 服务。
+
+克隆并构建客户端：
 
 ```sh
-bash tools/test-core.sh
+git clone https://github.com/OpenArkStudio/ark-client-godot.git
+cd ark-client-godot
 bash tools/build.sh
+```
+
+将 `godot` 指向 Godot .NET 可执行文件，在此目录打开**两个终端**：
+
+```sh
+# 终端 1
 godot --path . -- --host=127.0.0.1 --port=19100 --name=Alice --connect
 ```
 
-命令中的 `godot` 应指向 Godot .NET 可执行文件。使用便携运行时执行 Shell 脚本时，
-通过 `DOTNET` 和 `GODOT` 指定可执行文件路径。若引擎无法发现运行时，
-将 `DOTNET_ROOT` 指向 SDK 与运行时所在目录。
+```sh
+# 终端 2
+godot --path . -- --host=127.0.0.1 --port=19100 --name=Bob --connect
+```
 
-再以 Bob 的名字启动一个客户端，即可共同探索带插画场景的村庄广场。
-点击 **Leave** 离开房间，点击 **Rejoin** 创建新身份。
-意外断线后最多自动重试五次，间隔依次为 1、2、4、8、8 秒；界面保留失败信息。
-房间最多容纳 16 名访客，访客名字最多包含 64 个 UTF-8 编码字节。
-头像标签限制为 160 像素，超出时显示省略号；发生重叠时在场地内错行显示。
-房间状态中的完整名字保持不变。
-地形、村庄装饰与动画角色来自 Pixel-Boy 和 AAA 的 CC0 Ninja Adventure 素材。
-本地忍者使用 **YOU** 标签、菱形及双地面环；其他成员使用 **PLAYER** 标签与空心标记。
-行走和朝向依据实际显示位移更新。见 [素材署名](docs/third-party-notices_CN.md)。
-紧凑 HUD 展示连接、人数和真实应用 RTT。展开 **NETWORK** 可查看实际远端、序列号、目标、确认坐标、快照年龄、
-应用 ping RTT 及消息帧与字节累计值。青色标识自己，琥珀色标识其他成员。
-**Visual smoothing** 仅平滑角色绘制位置。原始服务端标记默认关闭，可在 NETWORK 中开启；
-地面身份环跟随显示位置。场景装饰不增加碰撞规则。
-可编辑的 [数据流程图](docs/data-sync_CN.md) 说明完整路径。
+便携工具链、编辑器设置与故障排查见[运行指南](docs/run_CN.md)。
 
-操作与验证说明见 [运行文档](docs/run_CN.md)，协议见 [线协议约定](docs/protocol_CN.md)。
-示例提供临时访客会话，不提供账号凭据、身份续接、持久化、加密或生产容量验证。
-历史 Unity 登录与游戏消息使用不同协议。
+## 房间操作
 
-## 目录
+| 操作 | 效果 |
+| --- | --- |
+| WASD / 方向键 | 移动自己的角色；另一个客户端显示服务端确认的位置 |
+| **Take hit** | 自己的 HP 减少 15 |
+| **Use skill** | MP 足够时消耗 20 |
+| **Rest** | HP 与 MP 各恢复 20，不超过各自上限 |
+| **Leave** → **Connect** | 离开后以新访客身份加入；**Rejoin** 同样创建新会话 |
+| **NETWORK** | 查看传输和同步信息，切换原始服务端位置标记 |
+| **Visual smoothing** | 对比平滑显示与原始服务端位置 |
 
-- `src/Ark.Client.Core`：协议帧、TCP 传输和房间状态，不依赖 Godot。
-- `Scripts` 与 `Scenes`：Godot 输入、绘制、状态显示与重连生命周期。
-- `tests`：编译执行的 C# 检查及共享协议向量。
+初始 HP/MP 均为 100。动作只提交变更请求，由服务端确定结果；本演示中 HP 为零仍可移动。意外断线后最多重试五次，重连会重置访客状态，不恢复旧会话。
 
-项目采用 [Apache-2.0](LICENSE) 许可证。贡献约定见 [AGENTS.md](AGENTS.md)。
+## 代码与文档
+
+`src/Ark.Client.Core` 提供协议帧、TCP 传输和房间状态，不依赖 Godot；`Scripts/` 与 `Scenes/` 负责输入、画面和引擎生命周期。配套 ark 插件维护 Entity 字段并广播房间快照。
+
+- [数据流程与指标定义](docs/data-sync_CN.md)
+- [ARK2 线协议](docs/protocol_CN.md)
+- [测试与验收范围](docs/validation_CN.md)：C# 编译检查、真实双客户端联调、服务端重启与本机人工体验
+- [素材署名](docs/third-party-notices_CN.md)：Pixel-Boy 和 AAA 的 CC0 Ninja Adventure
+
+执行 `bash tools/test-core.sh` 可运行独立于引擎的回归测试。贡献约定见 [AGENTS.md](AGENTS.md)。
+
+本项目是桌面 TCP 演示，提供最多 16 名玩家的临时访客会话，不包含账号、持久化、加密与 Web 导出，也不代表生产容量测试结果。ARK2 需要配套的客户端与服务端，和历史 Unity 协议不同。
+
+项目采用 [Apache-2.0](LICENSE) 许可证。

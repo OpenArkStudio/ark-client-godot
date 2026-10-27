@@ -1,60 +1,76 @@
 # ark-client-godot
 
-A Godot C# client for OpenArkStudio [ark](https://github.com/OpenArkStudio/ark).
-Join a shared 2D guest room, move using WASD or arrow keys, and reconnect with a
-fresh guest identity. Player positions and the roster come from server snapshots.
-HP/MP bars and the **Take hit**, **Use skill** and **Rest** buttons demonstrate
-server-owned business attributes. Button presses propose actions; only confirmed
-snapshots change values or produce floating delta feedback. Action rejection is nonfatal.
+**A playable 2D networking demo for [ark](https://github.com/OpenArkStudio/ark), built with Godot and C#.**
 
-[中文说明](README_CN.md)
+[English](README.md) · [简体中文](README_CN.md) · [Run guide](docs/run.md) · [Data synchronization](docs/data-sync.md)
 
-![Two real guests with distinct player markers and authoritative HP/MP](docs/images/room.png)
+![Two guests in the village, with distinct player markers and synchronized HP/MP](docs/images/room.png)
 
-## Run
+Explore a shared village with two clients and see how input becomes server-owned state. Move together, change HP/MP, and reconnect while inspecting the messages behind the scene.
 
-Prerequisites: Godot **4.7.2 .NET**, a **.NET 8 SDK**, and the companion ark
-matching **ARK2** `guest_room` example server. Upgrade both sides together:
-older ARK1 servers/clients are rejected. The standard Godot editor cannot build this C#
-project. This sample uses raw TCP on desktop; it does not target web exports.
+| Explore | What it demonstrates |
+| --- | --- |
+| Shared room | Guest join/leave, a synchronized roster and server-confirmed positions |
+| Player identity | **YOU** with a diamond and double ground ring; **PLAYER** with a hollow marker |
+| HP and MP | Server-validated actions, numeric bars and confirmed attribute-change feedback |
+| Connection recovery | Visible connection state, bounded retries and a fresh guest session after reconnecting |
+| Network diagnostics | Application RTT, frame/byte counts, sequences and proposed versus confirmed positions |
+
+## Try it locally
+
+You need:
+
+- **Godot 4.7.2 .NET** — the standard editor cannot run this C# project.
+- **.NET 8 SDK**.
+- The matching ark **ARK2** [`guest_room` server](https://github.com/OpenArkStudio/ark/tree/main/examples/guest_room), running on `127.0.0.1:19100`. Follow its build/run instructions first; no database or Registry service is needed.
+
+Clone and build the client:
 
 ```sh
-bash tools/test-core.sh
+git clone https://github.com/OpenArkStudio/ark-client-godot.git
+cd ark-client-godot
 bash tools/build.sh
+```
+
+Use your Godot .NET executable for `godot`. Open **two terminals** in this directory:
+
+```sh
+# Terminal 1
 godot --path . -- --host=127.0.0.1 --port=19100 --name=Alice --connect
 ```
 
-Use the Godot .NET executable for `godot`. Set `DOTNET` and `GODOT` to executable
-paths when using the shell scripts with portable runtimes. `DOTNET_ROOT` must
-point to that SDK/runtime directory when the engine cannot discover it.
+```sh
+# Terminal 2
+godot --path . -- --host=127.0.0.1 --port=19100 --name=Bob --connect
+```
 
-Open a second client as Bob to explore the illustrated village plaza together.
-Use **Leave** to disconnect and **Rejoin** to create a new identity. Unexpected disconnects
-retry up to five times with 1, 2, 4, 8 and 8 second delays; errors remain visible.
-The room has 16 guest slots. Guest names contain at most 64 UTF-8 bytes.
-Visible avatar labels use a 160-pixel limit with an ellipsis and stagger inside
-the arena when they collide. Full names remain unchanged in room state.
-Pixel-Boy and AAA's CC0 Ninja Adventure art supplies the terrain, village props
-and animated characters. **YOU** nameplates, a diamond and a double ground ring
-identify the local ninja; **PLAYER** nameplates and hollow markers identify peers.
-Walking and facing follow actual displayed movement. See [art credits](docs/third-party-notices.md).
-The compact HUD shows connection, player count and actual application RTT.
-Expand **NETWORK** for
-actual endpoint, sequences, targets, confirmed coordinates, snapshot age,
-application ping RTT and frame/byte totals. Cyan marks you; amber marks peers.
-**Visual smoothing** eases only the drawn character. Raw-server markers default
-off and can be enabled in NETWORK; ground role rings follow displayed positions.
-Scenery is decorative and adds no collision rules. See the editable [data-flow diagram](docs/data-sync.md).
+For portable toolchains, editor setup and troubleshooting, see the [run guide](docs/run.md).
 
-See [run and verification](docs/run.md) and the [wire contract](docs/protocol.md).
-The sample provides temporary guest sessions. It does not provide account
-credentials, identity resumption, persistence, encryption or production capacity
-validation. Legacy Unity login/game messages use a different protocol.
+## Explore the room
 
-## Structure
+| Control | Result |
+| --- | --- |
+| WASD / arrow keys | Move your character; the other client sees the server-confirmed position |
+| **Take hit** | Reduce your HP by 15 |
+| **Use skill** | Spend 20 MP, if enough remains |
+| **Rest** | Restore 20 HP and MP, capped at their maxima |
+| **Leave** → **Connect** | Leave, then join as a fresh guest; **Rejoin** also starts a fresh session |
+| **NETWORK** | Inspect transport and synchronization details; toggle raw server markers |
+| **Visual smoothing** | Compare eased rendering with raw server positions |
 
-- `src/Ark.Client.Core`: portable framing, TCP transport and room state; no Godot dependency.
-- `Scripts` and `Scenes`: Godot input, drawing, status and reconnect lifecycle.
-- `tests`: compiled C# checks and shared wire vectors.
+HP/MP start at 100. Actions request a change; the server decides the result. Zero HP does not prevent movement in this demo. Unexpected disconnects retry up to five times; reconnecting resets guest state rather than restoring it.
 
-Licensed under [Apache-2.0](LICENSE). Contribution conventions: [AGENTS.md](AGENTS.md).
+## How it fits together
+
+`src/Ark.Client.Core` contains framing, TCP transport and room state without a Godot dependency. `Scripts/` and `Scenes/` handle input, presentation and engine lifecycle. The companion ark plugin owns Entity fields and broadcasts room snapshots.
+
+- [Data flow and metric definitions](docs/data-sync.md)
+- [ARK2 wire protocol](docs/protocol.md)
+- [Tests and validation scope](docs/validation.md) — compiled C# checks, real two-client integration, server restart and local manual review
+- [Art credits](docs/third-party-notices.md) — CC0 Ninja Adventure by Pixel-Boy and AAA
+
+Run the portable regressions with `bash tools/test-core.sh`. See [AGENTS.md](AGENTS.md) for contribution conventions.
+
+This desktop TCP demo provides temporary guest sessions for up to 16 players. Accounts, persistence, encryption and web export are outside its scope; it is not a production capacity benchmark. ARK2 requires matching client/server versions and differs from the legacy Unity protocol.
+
+Licensed under [Apache-2.0](LICENSE).
