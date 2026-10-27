@@ -10,13 +10,18 @@ snapshot stream.
 ```mermaid
 flowchart LR
     Input[WASD / arrows] --> Proposal[Client proposal: seq + target]
-    Proposal -->|60002 / ARK1 TCP| Net[ark Net callback / owner thread]
+    Proposal -->|60002 / ARK2 TCP| Net[ark Net callback / owner thread]
     Net --> Check[Validate finite bounds + increasing seq]
     Check -->|Accepted| Kernel[Kernel-owned GuestPlayer state]
     Check -->|60004 rejected| Error[Visible client error]
+    Action[Take hit / Use skill / Rest] -->|60008: independent seq + kind| ActionCheck[Server validates action / fixed amounts]
+    ActionCheck -->|Accepted| Kernel
+    ActionCheck -->|60004 + action_seq| Rejection[Nonfatal matching-action feedback]
     Kernel --> Snapshot[Sample builds full room snapshot]
     Snapshot -->|60003 / TCP to joined peers| Room[Each client: RoomSession]
     Room --> Raw[Optional raw markers + roster + confirmed values]
+    Room --> Stats[Confirmed HP/MP bars + numeric values]
+    Stats --> Delta[Feedback only for received stat deltas]
     Room --> Display[Display-only easing / raw toggle]
     Display --> Avatar[Licensed animated sprite + role nameplate]
 ```
@@ -47,17 +52,28 @@ Expand **NETWORK** to compare actual observations:
 | Entity ID | Opaque temporary ID returned by the server, replaced on rejoin |
 | Move proposal | Latest generated move sequence and target, before server confirmation |
 | Server-confirmed | This player's sequence and coordinates in the latest applied full snapshot |
+| HP / MP and maxima | Required server-owned values; bars and numbers update only from a valid full snapshot |
+| Action proposal / pending / action_seq | A separate sequence from movement. Only own matching/newer confirmed `action_seq` resolves acceptance; an exact correlated error resolves rejection without leaving |
 | Last room update age | Monotonic elapsed time since this client applied the latest valid snapshot; not server generation age or one-way latency |
 | App ping RTT | Monotonic time from beginning the ping send call to processing its matching pong on the client owner thread; includes local sends, network transit, server queues/polling and client receive queues/polling |
 | Ping / pong nonce | Current pending nonce and last matched nonce; stale or duplicate pongs do not create a new RTT sample |
 | Tx completed frames / bytes | Complete application-frame writes accepted by the local stream, including the 12-byte header; no peer receipt/ACK claim, and no estimate of partial failed writes |
-| Rx decoded frames | Valid complete ARK1 frames parsed from the stream |
+| Rx decoded frames | Valid complete ARK2 frames parsed from the stream |
 | Rx stream bytes | Actual stream-read bytes, including headers, incomplete data and invalid framing; excludes TCP/IP overhead |
 
 A ping starts after the initial snapshot and repeats every five seconds.
+Each connection permits only one in-flight local stream write. A busy connection
+defers movement and heartbeat preparation before consuming a sequence, nonce or
+deadline; an action click reports nonfatal busy feedback without creating a
+pending action. There is no additional send queue and no peer-ACK inference.
 Unavailable observations show an em dash rather than fabricated zero latency.
 Transport counters belong to one `TcpConnection`; a new instance starts at zero.
 Disconnect/rejoin clears proposals, age, pending nonce, RTT and display state.
+It also clears pending business actions without retry. New identities begin at
+the server's HP/MP values. Taking a hit, using a skill or resting does not alter
+client attributes in anticipation. Floating HP/MP amounts compare confirmed
+snapshots, so a capped no-op creates no fabricated increase/decrease. HP zero
+does not disable demo movement. The request contains no amount or target.
 Counter snapshots are immutable and protected by a short transport lock; room,
 RTT and presentation state are mutated only on the client owner thread.
 

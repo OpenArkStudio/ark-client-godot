@@ -7,13 +7,18 @@
 ```mermaid
 flowchart LR
     Input[WASD / 方向键] --> Proposal[客户端提议：序列号 + 目标坐标]
-    Proposal -->|60002 / ARK1 TCP| Net[ark Net 回调 / 所属线程]
+    Proposal -->|60002 / ARK2 TCP| Net[ark Net 回调 / 所属线程]
     Net --> Check[检查有限坐标边界与递增序列号]
     Check -->|接受| Kernel[Kernel 管理的 GuestPlayer 状态]
     Check -->|60004 拒绝| Error[客户端显示错误]
+    Action[Take hit / Use skill / Rest] -->|60008：独立序列号与 kind| ActionCheck[服务端检查动作 / 固定数值]
+    ActionCheck -->|接受| Kernel
+    ActionCheck -->|60004 与 action_seq| Rejection[非致命的匹配动作反馈]
     Kernel --> Snapshot[示例构建完整房间快照]
     Snapshot -->|60003 / TCP 发给房间成员| Room[每个客户端：RoomSession]
     Room --> Raw[可选原始位置标记 / 成员列表 / 确认值]
+    Room --> Stats[确认后的 HP/MP 条与数值]
+    Stats --> Delta[仅根据收到的属性变化产生反馈]
     Room --> Display[仅显示层平滑 / 原始位置切换]
     Display --> Avatar[授权动画精灵与身份标签]
 ```
@@ -37,17 +42,27 @@ NETWORK 展开完整成员列表、服务端坐标和诊断。逻辑画布随窗
 | Entity ID | 服务端返回的临时不透明 ID，重新加入时替换 |
 | Move proposal | 最近生成的移动序列号与目标坐标，此时尚不能视为服务端确认 |
 | Server-confirmed | 最近应用的完整快照中，本玩家的序列号与坐标 |
+| HP / MP 与上限 | 必须存在的服务端属性；条和数值仅随有效完整快照更新 |
+| 动作提议 / 待确认 / action_seq | 与移动独立的序列号。自己的匹配或更新 `action_seq` 确认接受；精确关联的错误确认拒绝，不离开房间 |
 | Last room update age | 从本客户端应用最近有效快照起的单调时钟耗时；不代表服务端快照生成时间或单向延迟 |
 | App ping RTT | 从开始调用 ping 发送，到客户端所属线程处理匹配 pong 的单调时钟耗时；包括本地发送、网络传输、服务端队列与轮询，以及客户端接收队列与轮询 |
 | Ping / pong nonce | 当前待匹配 nonce 和最近匹配 nonce；旧 pong 或重复 pong 不产生新 RTT 样本 |
 | Tx completed frames / bytes | 本地流完成写入的完整应用消息帧及字节数，包含 12 字节消息头；不代表对端收到或确认，也不估计失败写入的部分字节 |
-| Rx decoded frames | 从字节流中解析出的有效完整 ARK1 消息帧 |
+| Rx decoded frames | 从字节流中解析出的有效完整 ARK2 消息帧 |
 | Rx stream bytes | 实际读取的流字节数，包含消息头、不完整数据和无效帧数据，不包含 TCP/IP 开销 |
 
 客户端在初始快照后发送 ping，此后每 5 秒发送一次。尚无观测值时显示破折号，不填造零延迟。
 传输计数属于一个 `TcpConnection`；新实例从零开始。断开或重新加入时，
 清空提议、快照年龄、待匹配 nonce、RTT 与显示状态。
+待确认业务动作也会清空，且不重试。新身份以服务端 HP/MP 值开始。
+点击受击、技能或恢复不会提前修改客户端属性。浮动 HP/MP 数值来自确认快照之间的差值，
+因此上限裁剪后没有变化的动作不会制造增减反馈。HP 为零仍允许示例移动。
+请求不包含数值或目标。
 计数快照不可变，传输层通过短时锁保护；房间、RTT 和显示状态仅由客户端所属线程修改。
+
+每个连接同一时间只允许一次本地流写入。连接忙时，在消耗序列号、nonce 或截止时间之前，
+延后移动与心跳的准备；动作按钮显示非致命的忙碌反馈，不生成待确认动作。
+不增加发送队列，也不据此推断对端 ACK。
 
 本示例不模拟延迟或丢包。应用 RTT、累计字节数与可见平滑不能证明 TCP 吞吐量、丢包率、
 生产容量或跨主机性能。

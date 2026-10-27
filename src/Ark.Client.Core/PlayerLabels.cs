@@ -37,38 +37,43 @@ public static class PlayerLabels
     }
 
     public static IReadOnlyList<PlayerLabel> Arrange(IReadOnlyList<PlayerState> players,
-        float lineHeight, Func<string, float> measure)
+        float lineHeight, Func<string, float> measure, float extraHeight = 0)
     {
-        float pitch = lineHeight + Padding;
+        float height = lineHeight + extraHeight;
+        float pitch = height + Padding;
         int rows = (int)((RoomSession.Height - 2 * Padding) / pitch);
-        if (players.Count > 16 || !float.IsFinite(lineHeight) || lineHeight <= 0 || rows < 16)
+        if (players.Count > 16 || !float.IsFinite(height) || lineHeight <= 0 || extraHeight < 0 || height > 48 || rows < 7)
         {
-            throw new ArgumentException("Label layout requires at most 16 players and 16 available rows.");
+            throw new ArgumentException("Label layout requires at most 16 players and a panel height of at most 48 pixels.");
         }
 
         var labels = new List<PlayerLabel>(players.Count);
         foreach (PlayerState player in players)
         {
             string text = FitText(player.Name + " #" + player.Id, MaximumWidth, measure);
-            float width = measure(text);
+            float width = extraHeight > 0 ? MaximumWidth : measure(text);
             float preferredX = Math.Clamp(player.X + 16, Padding, RoomSession.Width - width - Padding);
-            int preferredRow = Math.Clamp((int)((player.Y - lineHeight - 16 - Padding) / pitch), 0, rows - 1);
+            int preferredRow = Math.Clamp((int)((player.Y - height - 16 - Padding) / pitch), 0, rows - 1);
             LabelRectangle? chosen = null;
-            // Rows are shared across at most 16 labels, so a free row always exists.
-            for (int distance = 0; distance < rows && chosen is null; distance++)
+            // Try nearby rows first; five bounded fallback columns fit dense stat panels.
+            for (int column = -1; column < 5 && chosen is null; column++)
             {
-                for (int direction = -1; direction <= 1; direction += 2)
+                float x = column < 0 ? preferredX : Padding + column * (MaximumWidth + 8);
+                for (int distance = 0; distance < rows && chosen is null; distance++)
                 {
-                    int row = preferredRow + direction * distance;
-                    if (row < 0 || row >= rows)
+                    for (int direction = -1; direction <= 1; direction += 2)
                     {
-                        continue;
-                    }
-                    var candidate = new LabelRectangle(preferredX, Padding + row * pitch, width, lineHeight);
-                    if (!labels.Any(label => candidate.Intersects(label.Bounds)))
-                    {
-                        chosen = candidate;
-                        break;
+                        int row = preferredRow + direction * distance;
+                        if (row < 0 || row >= rows)
+                        {
+                            continue;
+                        }
+                        var candidate = new LabelRectangle(x, Padding + row * pitch, width, height);
+                        if (!labels.Any(label => candidate.Intersects(label.Bounds)))
+                        {
+                            chosen = candidate;
+                            break;
+                        }
                     }
                 }
             }

@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Scripts/**/*.cs" />
+    <Compile Include="tests/Support/AttributeSmokeProgress.cs" />
     <ProjectReference Include="src/Ark.Client.Core/Ark.Client.Core.csproj" />
   </ItemGroup>
 </Project>

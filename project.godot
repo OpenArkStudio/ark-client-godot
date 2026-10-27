@@ -8,7 +8,7 @@ config/features=PackedStringArray("4.7", "C#", "GL Compatibility")
 
 [display]
 window/size/viewport_width=1120
-window/size/viewport_height=780
+window/size/viewport_height=824
 window/stretch/mode="canvas_items"
 window/stretch/aspect="keep"
 

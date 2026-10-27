@@ -3,12 +3,17 @@
 基于 Godot C# 的 OpenArkStudio [ark](https://github.com/OpenArkStudio/ark) 客户端。
 加入共享二维访客房间后，可使用 WASD 或方向键移动，并在断线后以新访客身份重新加入。
 玩家位置和房间成员列表以服务端快照为准。
+HP/MP 条以及 **Take hit**、**Use skill**、**Rest** 按钮演示服务端拥有的业务属性。
+点击按钮仅提议动作；只有确认快照能改变数值或产生浮动增减反馈。动作拒绝不会断开房间。
 
 [English](README.md)
 
+![真实双客户端房间、玩家身份标记与服务端 HP/MP](docs/images/room.png)
+
 ## 运行
 
-前置条件：Godot **4.7.2 .NET**、**.NET 8 SDK**，以及配套的 ark `guest_room` 示例服务端。
+前置条件：Godot **4.7.2 .NET**、**.NET 8 SDK**，以及配套的 **ARK2** ark `guest_room` 示例服务端。
+必须同时升级两端；旧 ARK1 客户端或服务端会被拒绝。
 标准版 Godot 编辑器不能构建本 C# 项目。本示例使用桌面端原始 TCP，不面向 Web 导出。
 
 ```sh

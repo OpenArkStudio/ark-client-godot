@@ -3,13 +3,19 @@
 A Godot C# client for OpenArkStudio [ark](https://github.com/OpenArkStudio/ark).
 Join a shared 2D guest room, move using WASD or arrow keys, and reconnect with a
 fresh guest identity. Player positions and the roster come from server snapshots.
+HP/MP bars and the **Take hit**, **Use skill** and **Rest** buttons demonstrate
+server-owned business attributes. Button presses propose actions; only confirmed
+snapshots change values or produce floating delta feedback. Action rejection is nonfatal.
 
 [中文说明](README_CN.md)
+
+![Two real guests with distinct player markers and authoritative HP/MP](docs/images/room.png)
 
 ## Run
 
 Prerequisites: Godot **4.7.2 .NET**, a **.NET 8 SDK**, and the companion ark
-`guest_room` example server. The standard Godot editor cannot build this C#
+matching **ARK2** `guest_room` example server. Upgrade both sides together:
+older ARK1 servers/clients are rejected. The standard Godot editor cannot build this C#
 project. This sample uses raw TCP on desktop; it does not target web exports.
 
 ```sh
