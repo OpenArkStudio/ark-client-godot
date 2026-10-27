@@ -3,16 +3,19 @@ using System.Text.Json;
 
 namespace Ark.Client.Core;
 
-public sealed record PlayerState(string Id, string Name, float X, float Y, uint Sequence);
+public sealed record PlayerState(string Id, string Name, float X, float Y, uint Sequence,
+    uint Hp = 100, uint Mp = 100, uint HpMax = 100, uint MpMax = 100, uint ActionSequence = 0);
 public sealed record MoveProposal(uint Sequence, float X, float Y);
+public sealed record ActionProposal(uint Sequence, string Kind);
 
 public sealed class RoomSession
 {
     public const ushort Join = 60000, Accepted = 60001, Move = 60002,
-        Snapshot = 60003, Error = 60004, Ping = 60005, Pong = 60006;
+        Snapshot = 60003, Error = 60004, Ping = 60005, Pong = 60006, Action = 60008;
     public const int Width = 960, Height = 540;
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
     private uint _sequence;
+    private uint _actionSequence;
     public string? PlayerId
     {
         get; private set;
@@ -35,6 +38,18 @@ public sealed class RoomSession
         get; private set;
     }
     public MoveProposal? LastProposedMove
+    {
+        get; private set;
+    }
+    public ActionProposal? PendingAction
+    {
+        get; private set;
+    }
+    public ActionProposal? LastProposedAction
+    {
+        get; private set;
+    }
+    public string? ActionFeedback
     {
         get; private set;
     }
@@ -72,6 +87,35 @@ public sealed class RoomSession
     }
 
     public static byte[] PingFrame(uint nonce) => JsonFrame(Ping, new { nonce });
+    public byte[] ActionFrame(string kind)
+    {
+        if (!HasSnapshot || PlayerId is null)
+        {
+            throw new InvalidOperationException("Join before requesting an action.");
+        }
+        if (PendingAction is not null)
+        {
+            throw new InvalidOperationException("Wait for the pending action result.");
+        }
+        if (kind is not ("damage" or "skill" or "rest"))
+        {
+            throw new ArgumentException("Unsupported action kind.");
+        }
+        if (_actionSequence == uint.MaxValue)
+        {
+            throw new InvalidOperationException("Action sequence exhausted; reconnect.");
+        }
+        var proposal = new ActionProposal(++_actionSequence, kind);
+        byte[] frame = JsonFrame(Action, new
+        {
+            seq = proposal.Sequence,
+            kind
+        });
+        PendingAction = proposal;
+        LastProposedAction = proposal;
+        ActionFeedback = "Awaiting server confirmation…";
+        return frame;
+    }
     public static byte[] JsonFrame<T>(ushort id, T body) => FrameCodec.Encode(id, JsonSerializer.SerializeToUtf8Bytes(body));
 
     public void Reset()
@@ -84,6 +128,10 @@ public sealed class RoomSession
         HasSnapshot = false;
         LastPong = 0;
         LastProposedMove = null;
+        _actionSequence = 0;
+        PendingAction = null;
+        LastProposedAction = null;
+        ActionFeedback = null;
     }
 
     public string Apply(Frame frame)
@@ -146,13 +194,20 @@ public sealed class RoomSession
                         float x = item.GetProperty("x").GetSingle(), y = item.GetProperty("y").GetSingle();
                         ValidatePosition(x, y);
                         uint seq = item.GetProperty("seq").GetUInt32();
+                        uint hp = item.GetProperty("hp").GetUInt32(), mp = item.GetProperty("mp").GetUInt32();
+                        uint hpMax = item.GetProperty("hp_max").GetUInt32(), mpMax = item.GetProperty("mp_max").GetUInt32();
+                        uint actionSeq = item.GetProperty("action_seq").GetUInt32();
+                        if (hpMax == 0 || mpMax == 0 || hp > hpMax || mp > mpMax)
+                        {
+                            throw new InvalidDataException("Invalid authoritative HP/MP range.");
+                        }
                         PlayerState? previous = Players.FirstOrDefault(player => player.Id == playerId);
-                        if (previous is not null && seq < previous.Sequence)
+                        if (previous is not null && (seq < previous.Sequence || actionSeq < previous.ActionSequence))
                         {
                             throw new InvalidDataException("Snapshot sequence moved backwards.");
                         }
 
-                        players.Add(new PlayerState(playerId, playerName, x, y, seq));
+                        players.Add(new PlayerState(playerId, playerName, x, y, seq, hp, mp, hpMax, mpMax, actionSeq));
                     }
                     if (!ids.Contains(PlayerId))
                     {
@@ -161,6 +216,13 @@ public sealed class RoomSession
 
                     Players = players;
                     HasSnapshot = true;
+                    PlayerState own = players.First(player => player.Id == PlayerId);
+                    _actionSequence = Math.Max(_actionSequence, own.ActionSequence);
+                    if (PendingAction is ActionProposal pending && own.ActionSequence >= pending.Sequence)
+                    {
+                        ActionFeedback = pending.Kind + " confirmed by server";
+                        PendingAction = null;
+                    }
                     return "snapshot";
                 case Error:
                     string code = root.GetProperty("code").GetString() ?? "";
@@ -171,6 +233,16 @@ public sealed class RoomSession
                     }
 
                     LastError = code + ": " + message;
+                    if (root.TryGetProperty("action_seq", out JsonElement rejectedSequence))
+                    {
+                        uint rejected = rejectedSequence.GetUInt32();
+                        if (PendingAction?.Sequence == rejected)
+                        {
+                            PendingAction = null;
+                        }
+                        ActionFeedback = LastError;
+                        return "action_error";
+                    }
                     return "error";
                 case Pong:
                     LastPong = root.GetProperty("nonce").GetUInt32();

@@ -15,4 +15,4 @@ cat "$logs/import.log" "$logs/run.log"
 if grep -Eq '^(ERROR|SCRIPT ERROR):' "$logs/import.log" "$logs/run.log"; then
   exit 1
 fi
-grep -q '^CLIENT READY scene=GuestRoom language=C# protocol=ARK1$' "$logs/run.log"
+grep -q '^CLIENT READY scene=GuestRoom language=C# protocol=ARK2$' "$logs/run.log"

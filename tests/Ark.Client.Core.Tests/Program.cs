@@ -21,6 +21,8 @@ internal static class Program
             Test("monotonic snapshot age and correlated application RTT reset", DiagnosticsCorrelation);
             Test("display smoothing preserves server state and fresh identities", PresentationState);
             Test("local role markers and walking follow actual displayed movement", PresentationIdentityAndMotion);
+            Test("independent action sequence and exact pending correlation", ActionCorrelation);
+            Test("required HP/MP ranges, confirmed deltas and reset", AttributeValidation);
             await NetworkSessions();
             Console.WriteLine($"PASS {_passed} checks");
             return 0;
@@ -61,8 +63,8 @@ internal static class Program
     private static Frame Json(ushort id, string body) => new(id, Encoding.UTF8.GetBytes(body));
     private static Frame Accepted(string id) => Json(RoomSession.Accepted,
         $$"""{"player_id":"{{id}}","name":"Alice","room":"lobby","width":960,"height":540}""");
-    private static Frame Snapshot(string id, uint seq = 1) => Json(RoomSession.Snapshot,
-        $$"""{"room":"lobby","players":[{"id":"{{id}}","name":"Alice","x":120,"y":100,"seq":{{seq}}}]}""");
+    private static Frame Snapshot(string id, uint seq = 1, uint hp = 100, uint mp = 100, uint hpMax = 100, uint mpMax = 100, uint actionSeq = 0) => Json(RoomSession.Snapshot,
+        $$"""{"room":"lobby","players":[{"id":"{{id}}","name":"Alice","x":120,"y":100,"seq":{{seq}},"hp":{{hp}},"mp":{{mp}},"hp_max":{{hpMax}},"mp_max":{{mpMax}},"action_seq":{{actionSeq}}}]}""");
 
     private static void GoldenVectors()
     {
@@ -96,8 +98,34 @@ internal static class Program
     }
     private static void HeaderBounds()
     {
-        Check(Decode(FrameCodec.Encode(60000, new byte[4096])).Body.Length == 4096, "4096-byte boundary failed.");
-        Reject(() => FrameCodec.Encode(60000, new byte[4097]));
+        Check(Decode(FrameCodec.Encode(60000, new byte[8192])).Body.Length == 8192, "8192-byte boundary failed.");
+        byte[] maximum = FrameCodec.Encode(60003, new byte[8192]);
+        foreach (int split in new[] { 1, 11, 12, 4108, 8203 })
+        {
+            var codec = new FrameCodec();
+            Check(codec.Append(maximum.AsSpan(0, split)).Count == 0 && codec.Append(maximum.AsSpan(split)).Single().Body.Length == 8192,
+                "Bounded maximum-body partial frame failed.");
+        }
+        byte[] roster = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            room = "lobby",
+            players = Enumerable.Range(1, 16).Select(index => new
+            {
+                id = index.ToString(),
+                name = new string('"', 64),
+                x = 960,
+                y = 540,
+                seq = uint.MaxValue,
+                hp = uint.MaxValue,
+                mp = uint.MaxValue,
+                hp_max = uint.MaxValue,
+                mp_max = uint.MaxValue,
+                action_seq = uint.MaxValue
+            })
+        }, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+        Check(roster.Length > 4096 && roster.Length <= 8192 && Decode(FrameCodec.Encode(RoomSession.Snapshot, roster)).Body.SequenceEqual(roster),
+            "Expanded 16-player stat snapshot did not fit ARK2.");
+        Reject(() => FrameCodec.Encode(60000, new byte[8193]));
         byte[] magic = FrameCodec.Encode(60000, Array.Empty<byte>());
         magic[0] = 0;
         Reject(() => new FrameCodec().Append(magic));
@@ -105,9 +133,12 @@ internal static class Program
         flags[7] = 1;
         Reject(() => new FrameCodec().Append(flags));
         byte[] large = FrameCodec.Encode(60000, Array.Empty<byte>());
-        large[10] = 0x10;
+        large[10] = 0x20;
         large[11] = 1;
         Reject(() => new FrameCodec().Append(large));
+        byte[] oldVersion = FrameCodec.Encode(60000, Array.Empty<byte>());
+        oldVersion[3] = (byte)'1';
+        Reject(() => new FrameCodec().Append(oldVersion));
         large[8] = 0xff;
         large[9] = 0xff;
         Reject(() => new FrameCodec().Append(large));
@@ -184,6 +215,116 @@ internal static class Program
             Check(labels.Take(index).All(previous => !bounds.Intersects(previous.Bounds)), "Clustered labels overlap.");
         }
         Check(clustered.All(player => player.Name.Length == 64), "Display truncation changed the full name.");
+        IReadOnlyList<PlayerLabel> panels = PlayerLabels.Arrange(clustered, 16, Measure, extraHeight: 28);
+        for (int index = 0; index < panels.Count; index++)
+        {
+            LabelRectangle bounds = panels[index].Bounds;
+            Check(bounds.X >= 0 && bounds.Y >= 0 && bounds.X + bounds.Width <= RoomSession.Width &&
+                bounds.Y + bounds.Height <= RoomSession.Height &&
+                panels.Take(index).All(previous => !bounds.Intersects(previous.Bounds)), "HP/MP panels overlap or escape the arena.");
+        }
+    }
+
+    private static void ActionCorrelation()
+    {
+        var room = new RoomSession();
+        room.Apply(Accepted("1"));
+        room.Apply(Snapshot("1", 0));
+        using (JsonDocument request = JsonDocument.Parse(Decode(room.ActionFrame("damage")).Body))
+        {
+            Check(request.RootElement.EnumerateObject().Count() == 2 && request.RootElement.GetProperty("seq").GetUInt32() == 1 &&
+                request.RootElement.GetProperty("kind").GetString() == "damage", "Client sent amounts/targets or an incorrect action sequence.");
+        }
+        Check(room.Players.Single().Hp == 100 && room.PendingAction?.Sequence == 1, "Proposal predicted an HP change.");
+        try
+        {
+            room.ActionFrame("skill");
+            throw new Exception("A second action replaced the pending request.");
+        }
+        catch (InvalidOperationException) { }
+        room.Apply(Snapshot("1", 1));
+        Check(room.PendingAction?.Sequence == 1, "Movement snapshot prematurely confirmed an action.");
+        Check(room.Apply(Json(RoomSession.Error, "{\"code\":\"invalid_action\",\"message\":\"unrelated\",\"action_seq\":99}")) == "action_error" &&
+            room.PendingAction?.Sequence == 1 && room.HasSnapshot, "Unmatched rejection cleared pending state or disconnected.");
+        room.Apply(Json(RoomSession.Error, "{\"code\":\"invalid_action\",\"message\":\"invalid seq\",\"action_seq\":0}"));
+        Check(room.PendingAction?.Sequence == 1, "Sentinel rejection confirmed a valid request.");
+        room.Apply(Snapshot("1", 1, hp: 85, actionSeq: 1));
+        Check(room.PendingAction is null && room.Players.Single().Hp == 85, "Confirmed action did not update server-owned HP.");
+        room.ActionFrame("skill");
+        using (JsonDocument move = JsonDocument.Parse(Decode(room.MoveFrame(140, 110)).Body))
+        {
+            Check(move.RootElement.GetProperty("seq").GetUInt32() == 1 && room.PendingAction?.Sequence == 2,
+                "Action and move sequences are coupled.");
+        }
+        room.Apply(Json(RoomSession.Error, "{\"code\":\"insufficient_resource\",\"message\":\"not enough MP\",\"action_seq\":2}"));
+        Check(room.PendingAction is null && room.HasSnapshot && room.Players.Single().ActionSequence == 1 && room.Players.Single().Mp == 100,
+            "Business rejection changed authoritative state or left the session unusable.");
+        room.ActionFrame("rest");
+        Check(room.PendingAction?.Sequence == 3, "Rejected requests reused the previous action sequence.");
+        room.Apply(Snapshot("1", 1, actionSeq: 3));
+        Check(room.PendingAction is null, "Higher accepted action sequence did not resolve the pending request.");
+        room.Reset();
+        room.Apply(Accepted("new"));
+        room.Apply(Snapshot("new", 0));
+        Check(room.PendingAction is null && room.LastProposedAction is null && room.ActionFeedback is null,
+            "Reconnect retained or retried an action.");
+        room.ActionFrame("damage");
+        Check(room.PendingAction?.Sequence == 1, "Fresh identity did not reset action sequence.");
+    }
+
+    private static void AttributeValidation()
+    {
+        var room = new RoomSession();
+        room.Apply(Accepted("1"));
+        room.Apply(Snapshot("1", 0));
+        var feedback = new ConfirmedAttributes();
+        Check(feedback.Observe(room.Players).Count == 0, "Initial snapshot fabricated HP/MP feedback.");
+        room.ActionFrame("damage");
+        Check(feedback.Observe(room.Players).Count == 0, "Action proposal generated visual damage.");
+        room.Apply(Snapshot("1", 0, hp: 85, mp: 80, actionSeq: 1));
+        Check(feedback.Observe(room.Players).Single() == new AttributeChange("1", -15, -20), "Feedback is not based on confirmed deltas.");
+        room.ActionFrame("rest");
+        room.Apply(Snapshot("1", 0, actionSeq: 2));
+        Check(feedback.Observe(room.Players).Single() == new AttributeChange("1", 15, 20), "Capped restore feedback invented an amount.");
+        room.ActionFrame("rest");
+        room.Apply(Snapshot("1", 0, actionSeq: 3));
+        Check(room.PendingAction is null && feedback.Observe(room.Players).Count == 0, "Accepted clamp/no-op generated fake attribute feedback.");
+        PlayerState previous = room.Players.Single();
+        Reject(() => room.Apply(Snapshot("1", 0, hp: 101, actionSeq: 3)));
+        Reject(() => room.Apply(Snapshot("1", 0, hpMax: 0, actionSeq: 3)));
+        Reject(() => room.Apply(Snapshot("1", 0, mp: 101, actionSeq: 3)));
+        Reject(() => room.Apply(Snapshot("1", 0, mpMax: 0, actionSeq: 3)));
+        Reject(() => room.Apply(Snapshot("1", 0, actionSeq: 2)));
+        string complete = Encoding.UTF8.GetString(Snapshot("1", 0, actionSeq: 3).Body);
+        foreach (string field in new[] { "hp", "mp", "hp_max", "mp_max" })
+        {
+            Reject(() => room.Apply(Json(RoomSession.Snapshot, complete.Replace($"\"{field}\":100,", "", StringComparison.Ordinal))));
+        }
+        Reject(() => room.Apply(Json(RoomSession.Snapshot, complete.Replace(",\"action_seq\":3", "", StringComparison.Ordinal))));
+        Reject(() => room.Apply(Json(RoomSession.Snapshot, complete.Replace("\"hp\":100", "\"hp\":-1", StringComparison.Ordinal))));
+        Reject(() => room.Apply(Json(RoomSession.Snapshot, complete.Replace("\"hp\":100", "\"hp\":4294967296", StringComparison.Ordinal))));
+        Reject(() => room.Apply(Json(RoomSession.Snapshot, complete.Replace("\"mp\":100", "\"mp\":1.5", StringComparison.Ordinal))));
+        Check(room.Players.Single() == previous, "Invalid stats partially replaced the roster.");
+        room.ActionFrame("rest");
+        string ownNext = Encoding.UTF8.GetString(Snapshot("1", 0, actionSeq: 4).Body);
+        string invalidPeer = "{\"id\":\"2\",\"name\":\"Bob\",\"x\":1,\"y\":1,\"seq\":0,\"hp\":101,\"mp\":100,\"hp_max\":100,\"mp_max\":100,\"action_seq\":0}";
+        Reject(() => room.Apply(Json(RoomSession.Snapshot, ownNext.Replace("]}", "," + invalidPeer + "]}", StringComparison.Ordinal))));
+        Check(room.PendingAction?.Sequence == 4 && room.Players.Single() == previous,
+            "Invalid peer stats prematurely confirmed the own action.");
+        room.Apply(Snapshot("1", 0, hp: 0, actionSeq: 4));
+        room.MoveFrame(10, 10);
+        Check(room.LastProposedMove is not null, "Zero HP disabled demo movement.");
+        room.Apply(Snapshot("1", 0, hp: uint.MaxValue, mp: uint.MaxValue, hpMax: uint.MaxValue, mpMax: uint.MaxValue, actionSeq: uint.MaxValue));
+        try
+        {
+            room.ActionFrame("rest");
+            throw new Exception("Exhausted action sequence wrapped.");
+        }
+        catch (InvalidOperationException) { }
+        feedback.Reset();
+        Check(feedback.Observe(room.Players).Count == 0, "Fresh observation retained old HP/MP deltas.");
+        room.Apply(Snapshot("1", 0, hp: 0, actionSeq: uint.MaxValue));
+        Check(feedback.Observe(room.Players).Single().HpDelta == -(long)uint.MaxValue, "Large uint delta overflowed.");
     }
 
     private static void DiagnosticsCorrelation()

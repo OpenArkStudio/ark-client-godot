@@ -7,7 +7,7 @@ public sealed record Frame(ushort MessageId, byte[] Body);
 public sealed class FrameCodec
 {
     public const int HeaderLength = 12;
-    public const int MaximumBodyLength = 4096;
+    public const int MaximumBodyLength = 8192;
     private byte[] _buffer = new byte[HeaderLength + MaximumBodyLength];
     private int _count;
 
@@ -15,11 +15,11 @@ public sealed class FrameCodec
     {
         if (body.Length > MaximumBodyLength)
         {
-            throw new InvalidDataException("Body exceeds 4096 bytes.");
+            throw new InvalidDataException("Body exceeds 8192 bytes.");
         }
 
         var frame = new byte[HeaderLength + body.Length];
-        "ARK1"u8.CopyTo(frame);
+        "ARK2"u8.CopyTo(frame);
         BinaryPrimitives.WriteUInt16BigEndian(frame.AsSpan(4), messageId);
         BinaryPrimitives.WriteUInt32BigEndian(frame.AsSpan(8), (uint)body.Length);
         body.CopyTo(frame.AsSpan(HeaderLength));
@@ -39,7 +39,7 @@ public sealed class FrameCodec
             while (_count - consumed >= HeaderLength)
             {
                 var header = _buffer.AsSpan(consumed, HeaderLength);
-                if (!header[..4].SequenceEqual("ARK1"u8))
+                if (!header[..4].SequenceEqual("ARK2"u8))
                 {
                     throw new InvalidDataException("Unknown protocol marker.");
                 }
@@ -52,7 +52,7 @@ public sealed class FrameCodec
                 uint length = BinaryPrimitives.ReadUInt32BigEndian(header[8..]);
                 if (length > MaximumBodyLength)
                 {
-                    throw new InvalidDataException("Body exceeds 4096 bytes.");
+                    throw new InvalidDataException("Body exceeds 8192 bytes.");
                 }
 
                 int size = HeaderLength + (int)length;

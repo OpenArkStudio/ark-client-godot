@@ -16,7 +16,7 @@ unavailable, configure an external NuGet package source pointing to its
 runtime path or replace global NuGet configuration.
 
 1. Start the companion ark `guest_room` example, selecting its application
-   manifest and an available listener port. It must use the `ARK1` sample header;
+   manifest and an available listener port. It must use the `ARK2` sample header;
    the existing Login listener does not implement this guest protocol.
 2. Run portable checks with `bash tools/test-core.sh`. This compiles permanent
    C# checks and exercises real loopback TCP, including fragmented receives,
@@ -36,7 +36,7 @@ runtime path or replace global NuGet configuration.
 The main scene is `Scenes/GuestRoom.tscn`; its C# node is `Scripts/GuestRoom.cs`.
 `GuestRoomHud.cs` owns native containers and the foldable diagnostics/roster;
 `GuestRoomWorld.cs` draws the licensed pixel-art plaza and characters. The fixed
-960×540 arena is centered in a resizable 1120×780 logical canvas; diagnostics are closed by default.
+960×540 arena is centered in a resizable 1120×824 logical canvas; diagnostics are closed by default.
 Toggle **Visual smoothing** to compare eased display with raw snapshots, and
 expand **NETWORK** to compare the latest proposed sequence/target
 with confirmed values. RTT is a correlated application measurement, not a TCP
@@ -45,6 +45,13 @@ Enable **Raw server markers** there to show authoritative positions; the default
 ground rings are identity markers. The local player has YOU text, a diamond and
 a double ring; peers have PLAYER text and hollow markers. Sprite walking/facing
 uses actual displayed displacement. Scenery is visual only; no collisions were added.
+Above-player HP/MP bars include numeric values from the latest server snapshot.
+The compact bottom panel offers **Take hit** (own HP −15), **Use skill** (own MP −20,
+rejected if insufficient) and **Rest** (+20 to each, capped by the server).
+There is one pending action at a time. Movement remains available, including at
+zero HP. Matching action rejection clears the request and shows feedback without
+leaving; an unrelated movement snapshot does not confirm it. Rejoin clears it
+without retry. NETWORK shows maxima, confirmed `action_seq` and pending/proposed actions.
 Client options follow Godot's `--` separator:
 
 ```sh
@@ -52,8 +59,8 @@ Client options follow Godot's `--` separator:
 ```
 
 An unavailable server produces a visible error and bounded retries. Invalid
-room messages close the client session with a protocol error. Rejected business
-requests remain visible and require manual rejoin. Server errors and logs should
+room messages close the client session with a protocol error. Join errors remain
+visible and require manual rejoin; correlated action errors are nonfatal. Server errors and logs should
 be inspected before retrying a failing integration check.
 
 Portable checks, Godot compilation, headless engine execution, real-server
@@ -71,3 +78,7 @@ Windows. Its Linux job also verifies the pinned SHA-512 of the official Godot
 4.7.2 .NET archive, builds the scene, imports it and requires the C# readiness
 marker from an offline engine run. Hosted checks do not start an ark server and
 therefore do not establish two-peer framework integration.
+
+ARK2 requires the matching updated server and client. Historical ARK1 movement,
+continuity and hosted results do not validate the new attribute path; see the
+separate scopes in [validation](validation.md).

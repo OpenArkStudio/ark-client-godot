@@ -8,6 +8,8 @@ public partial class GuestRoomWorld : Control
     private IReadOnlyList<DisplayPlayer> _players = Array.Empty<DisplayPlayer>();
     private string? _localId;
     private bool _rawMarkers;
+    private double _now;
+    private readonly Dictionary<string, (AttributeChange Change, double At)> _attributeFeedback = new(StringComparer.Ordinal);
     private Texture2D _floor = null!, _village = null!, _ninja = null!, _samurai = null!, _shadow = null!, _pot = null!, _crate = null!;
     private readonly StyleBoxFlat _nameplate = new()
     {
@@ -31,13 +33,29 @@ public partial class GuestRoomWorld : Control
         _crate = GD.Load<Texture2D>(art + "destroyable/crate.png");
     }
 
-    public void Present(IReadOnlyList<DisplayPlayer> players, string? localId, bool rawMarkers)
+    public void Present(IReadOnlyList<DisplayPlayer> players, string? localId, bool rawMarkers, double now)
     {
         _players = players;
         _localId = localId;
         _rawMarkers = rawMarkers;
+        _now = now;
+        foreach (string expired in _attributeFeedback.Keys.Where(id => now - _attributeFeedback[id].At > 1.2 ||
+            !players.Any(player => player.ServerState.Id == id)).ToArray())
+        {
+            _attributeFeedback.Remove(expired);
+        }
         QueueRedraw();
     }
+
+    public void ShowAttributeChanges(IReadOnlyList<AttributeChange> changes, double now)
+    {
+        foreach (AttributeChange change in changes)
+        {
+            _attributeFeedback[change.PlayerId] = (change, now);
+        }
+    }
+
+    public void ClearAttributeFeedback() => _attributeFeedback.Clear();
 
     private static bool IsPath(int x, int y) => x >= 0 && x < 20 && y >= 0 && y < 12 &&
         ((x >= 1 && x <= 7 && y >= 1 && y <= 4) || (x >= 7 && x <= 13 && y >= 4 && y <= 9) ||
@@ -78,6 +96,7 @@ public partial class GuestRoomWorld : Control
             DrawPlayer(display);
         }
         DrawNameplates();
+        DrawAttributeFeedback();
         DrawRect(new Rect2(Vector2.Zero, new Vector2(960, 540)), new Color("3e5942"), false, 3);
     }
 
@@ -130,8 +149,9 @@ public partial class GuestRoomWorld : Control
             Y = display.Y - 44,
             Name = (PlayerPresentation.RoleFor(display.ServerState.Id, _localId) == PlayerRole.Local ? "YOU · " : "PLAYER · ") + display.ServerState.Name
         }).ToArray();
-        IReadOnlyList<PlayerLabel> labels = PlayerLabels.Arrange(visible, font.GetHeight(13),
-            text => font.GetStringSize(text, HorizontalAlignment.Left, -1, 13).X);
+        float textHeight = font.GetHeight(13);
+        IReadOnlyList<PlayerLabel> labels = PlayerLabels.Arrange(visible, textHeight,
+            text => font.GetStringSize(text, HorizontalAlignment.Left, -1, 13).X, extraHeight: 28);
         foreach (PlayerLabel label in labels)
         {
             LabelRectangle bounds = label.Bounds;
@@ -139,6 +159,37 @@ public partial class GuestRoomWorld : Control
             DrawStyleBox(_nameplate, rectangle);
             DrawString(font, new Vector2(bounds.X, bounds.Y + font.GetAscent(13)), label.Text,
                 HorizontalAlignment.Left, -1, 13, new Color("ffffff"));
+            PlayerState player = _players.First(display => display.ServerState.Id == label.PlayerId).ServerState;
+            DrawAttributeBar(new Rect2(bounds.X, bounds.Y + textHeight + 2, bounds.Width, 12), "HP", player.Hp, player.HpMax, new Color("c95c66"));
+            DrawAttributeBar(new Rect2(bounds.X, bounds.Y + textHeight + 16, bounds.Width, 12), "MP", player.Mp, player.MpMax, new Color("4b89cc"));
+        }
+    }
+
+    private void DrawAttributeBar(Rect2 bounds, string caption, uint value, uint maximum, Color color)
+    {
+        DrawRect(bounds, new Color("26313b"));
+        DrawRect(new Rect2(bounds.Position, new Vector2(bounds.Size.X * (value / (float)maximum), bounds.Size.Y)), color);
+        Font font = ThemeDB.FallbackFont;
+        string text = $"{caption} {value}/{maximum}";
+        float width = font.GetStringSize(text, HorizontalAlignment.Left, -1, 10).X;
+        DrawString(font, bounds.Position + new Vector2((bounds.Size.X - width) / 2, 10), text,
+            HorizontalAlignment.Left, -1, 10, new Color("ffffff"));
+    }
+
+    private void DrawAttributeFeedback()
+    {
+        Font font = ThemeDB.FallbackFont;
+        foreach (DisplayPlayer player in _players)
+        {
+            if (!_attributeFeedback.TryGetValue(player.ServerState.Id, out var feedback))
+            {
+                continue;
+            }
+            float rise = (float)(_now - feedback.At) * 24;
+            string hp = feedback.Change.HpDelta == 0 ? "" : $"HP {feedback.Change.HpDelta:+0;-0}";
+            string mp = feedback.Change.MpDelta == 0 ? "" : $"MP {feedback.Change.MpDelta:+0;-0}";
+            DrawString(font, new Vector2(player.X + 28, player.Y - 20 - rise), string.Join("  ", new[] { hp, mp }.Where(value => value.Length > 0)),
+                HorizontalAlignment.Left, -1, 14, new Color("ffffff"));
         }
     }
 }

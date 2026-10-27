@@ -13,16 +13,19 @@ public partial class GuestRoomHud : Control
     public bool RawMarkersEnabled => _rawMarkers.ButtonPressed;
     public event Action? ConnectRequested;
     public event Action? DisconnectRequested;
+    public event Action<string>? ActionRequested;
     private Label _identity = null!, _summary = null!, _details = null!, _roster = null!, _fullRoster = null!;
     private Button _connect = null!, _disconnect = null!;
     private CheckButton _smoothing = null!, _rawMarkers = null!;
     private PanelContainer _debugPanel = null!;
     private IReadOnlyList<PlayerState>? _lastRoster;
+    private Label _attributes = null!, _actionFeedback = null!;
+    private readonly List<Button> _actionButtons = new();
 
     public void Initialize(string host, string port, string name)
     {
         MouseFilter = MouseFilterEnum.Ignore;
-        Size = new Vector2(1120, 780);
+        Size = new Vector2(1120, 824);
         var header = new HBoxContainer();
         header.AddThemeConstantOverride("separation", 18);
         AddMargin(Card(new Vector2(24, 16), new Vector2(1072, 64)), header, 12);
@@ -64,9 +67,31 @@ public partial class GuestRoomHud : Control
         Status.VerticalAlignment = VerticalAlignment.Center;
         row.AddChild(Status);
 
+        var business = new VBoxContainer();
+        business.AddThemeConstantOverride("separation", 6);
+        AddMargin(Card(new Vector2(24, 724), new Vector2(1072, 76)), business, 8);
+        var actions = new HBoxContainer();
+        actions.AddThemeConstantOverride("separation", 8);
+        business.AddChild(actions);
+        _attributes = Text("HP — / MP —", 14);
+        _attributes.CustomMinimumSize = new Vector2(216, 32);
+        _attributes.VerticalAlignment = VerticalAlignment.Center;
+        actions.AddChild(_attributes);
+        foreach ((string kind, string caption) in new[] { ("damage", "Take hit"), ("skill", "Use skill"), ("rest", "Rest") })
+        {
+            var action = new Button { Text = caption, CustomMinimumSize = new Vector2(100, 32), Disabled = true };
+            SkinButton(action);
+            action.Pressed += () => ActionRequested?.Invoke(kind);
+            actions.AddChild(action);
+            _actionButtons.Add(action);
+        }
+        _actionFeedback = Text("Server-owned attributes", 12, expand: true);
+        _actionFeedback.ClipText = true;
+        _actionFeedback.VerticalAlignment = VerticalAlignment.Center;
+        actions.AddChild(_actionFeedback);
         var footer = new HBoxContainer();
         footer.AddThemeConstantOverride("separation", 16);
-        AddMargin(Card(new Vector2(24, 724), new Vector2(1072, 40)), footer, 8);
+        business.AddChild(footer);
         _roster = Text("No guests connected", 13, expand: true);
         _roster.ClipText = true;
         footer.AddChild(_roster);
@@ -110,8 +135,18 @@ public partial class GuestRoomHud : Control
         PlayerState? confirmed = room.Players.FirstOrDefault(player => player.Id == room.PlayerId);
         string outgoing = proposal is null ? "—" : FormattableString.Invariant($"seq {proposal.Sequence} → ({proposal.X:F1}, {proposal.Y:F1})");
         string authoritative = confirmed is null ? "—" : FormattableString.Invariant($"seq {confirmed.Sequence} @ ({confirmed.X:F1}, {confirmed.Y:F1})");
-        _details.Text = $"TCP peer: {transport.PeerEndpoint ?? "—"}\nARK1 / UTF-8 JSON\nLast room update age: {Milliseconds(session.SnapshotAgeMilliseconds)}\n\n" +
+        _attributes.Text = confirmed is null ? "HP — / MP —" : $"HP {confirmed.Hp}/{confirmed.HpMax}   MP {confirmed.Mp}/{confirmed.MpMax}";
+        _actionFeedback.Text = room.PendingAction is ActionProposal pending ? $"Awaiting action #{pending.Sequence}…" : room.ActionFeedback ?? "Server-owned attributes";
+        foreach (Button button in _actionButtons)
+        {
+            button.Disabled = !room.HasSnapshot || !connected || room.PendingAction is not null;
+        }
+        _details.Text = $"TCP peer: {transport.PeerEndpoint ?? "—"}\nARK2 / UTF-8 JSON\nLast room update age: {Milliseconds(session.SnapshotAgeMilliseconds)}\n\n" +
             $"Move proposal:\n{outgoing}\nServer-confirmed:\n{authoritative}\n\n" +
+            $"HP / MP: {(confirmed is null ? "—" : $"{confirmed.Hp}/{confirmed.HpMax} · {confirmed.Mp}/{confirmed.MpMax}")}\n" +
+            $"Confirmed action_seq: {confirmed?.ActionSequence.ToString() ?? "—"}\n" +
+            $"Action proposal: {room.LastProposedAction?.Sequence.ToString() ?? "—"} {room.LastProposedAction?.Kind ?? ""}\n" +
+            $"Pending action: {room.PendingAction?.Sequence.ToString() ?? "—"}\n\n" +
             $"Ping pending: {session.PendingPingNonce?.ToString() ?? "—"}\nMatched pong: {session.MatchedPongNonce?.ToString() ?? "—"}\n" +
             $"Tx completed frames / bytes:\n{transport.TxFrames} / {transport.TxBytes}\n" +
             $"Rx decoded frames / stream bytes:\n{transport.RxFrames} / {transport.RxBytes}\n\n" +
@@ -123,7 +158,7 @@ public partial class GuestRoomHud : Control
                 $"{(player.Id == room.PlayerId ? "◆ YOU" : "○ PLAYER")} {Fit(player.Name, 84)} #{player.Id}")) +
                 (room.Players.Count > 4 ? $"    +{room.Players.Count - 4}" : "");
             _fullRoster.Text = room.Players.Count == 0 ? "No guests yet." : string.Join("\n\n", room.Players.Select(player =>
-                FormattableString.Invariant($"{(player.Id == room.PlayerId ? "YOU" : "PLAYER")} {Fit(player.Name, 160)} #{player.Id}\nseq {player.Sequence}  ({player.X:F1}, {player.Y:F1})")));
+                FormattableString.Invariant($"{(player.Id == room.PlayerId ? "YOU" : "PLAYER")} {Fit(player.Name, 160)} #{player.Id}\nmove seq {player.Sequence}  ({player.X:F1}, {player.Y:F1})\nHP {player.Hp}/{player.HpMax} MP {player.Mp}/{player.MpMax}\naction_seq {player.ActionSequence}")));
         }
     }
 

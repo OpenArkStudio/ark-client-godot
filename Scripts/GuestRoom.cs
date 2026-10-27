@@ -8,6 +8,7 @@ public partial class GuestRoom : Node2D
     private readonly RoomSession _room = new();
     private readonly SessionDiagnostics _diagnostics = new();
     private readonly PlayerPresentation _presentation = new();
+    private readonly ConfirmedAttributes _confirmedAttributes = new();
     private GuestRoomHud _hud = null!;
     private GuestRoomWorld _world = null!;
     private TcpConnection? _connection;
@@ -42,7 +43,7 @@ public partial class GuestRoom : Node2D
         }
         _smoke = _options.ContainsKey("smoke");
         BuildControls();
-        GD.Print("CLIENT READY scene=GuestRoom language=C# protocol=ARK1");
+        GD.Print("CLIENT READY scene=GuestRoom language=C# protocol=ARK2");
         if (_smoke || _options.ContainsKey("connect"))
         {
             Connect();
@@ -73,12 +74,29 @@ public partial class GuestRoom : Node2D
             Connect();
         };
         _hud.DisconnectRequested += Disconnect;
+        _hud.ActionRequested += kind =>
+        {
+            if (_connection?.IsConnected != true)
+            {
+                return;
+            }
+            try
+            {
+                Send(_room.ActionFrame(kind));
+            }
+            catch (InvalidOperationException error)
+            {
+                SetStatus(error.Message);
+            }
+        };
     }
 
     private void ResetObservations()
     {
         _diagnostics.Reset();
         _presentation.Reset();
+        _confirmedAttributes.Reset();
+        _world.ClearAttributeFeedback();
         _nonce = 0;
     }
 
@@ -215,6 +233,7 @@ public partial class GuestRoom : Node2D
 
                         if (kind == "snapshot")
                         {
+                            _world.ShowAttributeChanges(_confirmedAttributes.Observe(_room.Players), _clock);
                             _diagnostics.SnapshotApplied();
                             if (!hadSnapshot)
                             {
@@ -233,6 +252,10 @@ public partial class GuestRoom : Node2D
                         {
                             Fail(_room.LastError ?? "Room request failed.", retry: false);
                             break;
+                        }
+                        if (kind == "action_error")
+                        {
+                            SetStatus(_room.ActionFeedback ?? "Action rejected.");
                         }
                     }
                 }
@@ -281,7 +304,7 @@ public partial class GuestRoom : Node2D
         }
 
         _presentation.Update(_room.Players, delta, _hud.SmoothingEnabled);
-        _world.Present(_presentation.Players, _room.PlayerId, _hud.RawMarkersEnabled);
+        _world.Present(_presentation.Players, _room.PlayerId, _hud.RawMarkersEnabled, _clock);
         if (_clock >= _nextHudUpdate)
         {
             _nextHudUpdate = _clock + 0.2;

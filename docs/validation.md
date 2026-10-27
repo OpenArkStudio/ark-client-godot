@@ -1,5 +1,20 @@
 # Validation scope
 
+## ARK2 attribute change
+
+The attribute branch adds a paired ARK2/8192-byte protocol, required HP/MP fields,
+independent actions and correlated nonfatal rejection. Permanent C# checks cover
+14 groups, including action correlation, invalid/missing/range boundaries,
+sequence caps, confirmed-only deltas, dense stat-panel bounds and reconnect reset.
+The local 14-group executable, whitespace/IDE0011 checks and Godot C# build passed;
+the build reported zero warnings/errors. Official engine import and offline
+execution passed with the ARK2 C# readiness marker.
+
+Real-server HP/MP integration, new visual inspection and hosted ARK2 checks are
+pending. The accepted ARK1 receipts below do not validate this attribute change.
+
+## Accepted ARK1 baseline
+
 Local validation on 2026-10-26 and 2026-10-27 used an Apple M4 Pro with 14 CPU
 cores and 48 GiB memory, macOS 27.0.1 arm64, Godot
 `4.7.2.stable.mono.official.ed1daf0bf`, .NET SDK `10.0.403`, and .NET runtime
