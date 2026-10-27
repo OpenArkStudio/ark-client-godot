@@ -12,6 +12,10 @@
   authentication, persistence, or compatibility with legacy Unity protocols.
 - Keep English and Chinese documentation aligned with changed behavior. Document
   exact prerequisites, commands, tested revisions and material limitations.
+- Follow the ark/arknet README layout: shared light/dark ARK branding, language
+  navigation, centered introduction and badges, then concise features and setup.
+  Keep packet magic and internal test labels in protocol documentation rather
+  than presenting them as product names or release versions.
 - Use permanent C# and actual Godot tests. Do not use Python or Ruby launch/test
   entrypoints. Shell scripts may orchestrate builds and tests. Keep artifacts,
   SDKs, engine binaries, logs and credentials out of version control.
