@@ -18,6 +18,8 @@ internal static class Program
             Test("authoritative state and fresh identity", SessionState);
             Test("invalid room messages do not replace roster", InvalidState);
             Test("bounded player label truncation and collision layout", LabelLayout);
+            Test("monotonic snapshot age and correlated application RTT reset", DiagnosticsCorrelation);
+            Test("display smoothing preserves server state and fresh identities", PresentationState);
             await NetworkSessions();
             Console.WriteLine($"PASS {_passed} checks");
             return 0;
@@ -123,13 +125,16 @@ internal static class Program
         room.Apply(Accepted("old"));
         room.Apply(Snapshot("old"));
         Check(room.HasSnapshot && room.Players.Single().Sequence == 1, "Authoritative snapshot missing.");
-        using (JsonDocument move = JsonDocument.Parse(Decode(room.MoveFrame(120, 100)).Body))
+        using (JsonDocument move = JsonDocument.Parse(Decode(room.MoveFrame(150, 160)).Body))
         {
             Check(move.RootElement.GetProperty("seq").GetUInt32() == 1, "First sequence must be one.");
         }
+        Check(room.LastProposedMove == new MoveProposal(1, 150, 160) && room.Players.Single().X == 120,
+            "Move proposal changed server-confirmed state.");
 
         room.Reset();
         Check(room.PlayerId is null && room.Players.Count == 0 && !room.HasSnapshot, "Reconnect retained old room.");
+        Check(room.LastProposedMove is null, "Reconnect retained an old proposal.");
         room.Apply(Accepted("new"));
         room.Apply(Snapshot("new", 0));
         using JsonDocument fresh = JsonDocument.Parse(Decode(room.MoveFrame(130, 110)).Body);
@@ -180,6 +185,63 @@ internal static class Program
         Check(clustered.All(player => player.Name.Length == 64), "Display truncation changed the full name.");
     }
 
+    private static void DiagnosticsCorrelation()
+    {
+        double clock = 100;
+        var diagnostics = new SessionDiagnostics(() => clock);
+        Check(diagnostics.Capture() == new SessionMetrics(null, null, null, null), "New session has fabricated observations.");
+        diagnostics.SnapshotApplied();
+        diagnostics.BeginPing(7);
+        clock = 125;
+        Check(!diagnostics.MatchPong(6), "An unmatched nonce produced an RTT.");
+        Check(diagnostics.MatchPong(7), "Matching pong was ignored.");
+        SessionMetrics first = diagnostics.Capture();
+        Check(first.ApplicationRttMilliseconds == 25 && first.SnapshotAgeMilliseconds == 25 &&
+            first.MatchedPongNonce == 7 && first.PendingPingNonce is null, "RTT/age scope is incorrect.");
+        clock = 150;
+        Check(!diagnostics.MatchPong(7) && diagnostics.Capture().ApplicationRttMilliseconds == 25,
+            "Duplicate pong changed the completed sample.");
+        diagnostics.BeginPing(8);
+        clock = 170;
+        Check(!diagnostics.MatchPong(7) && diagnostics.MatchPong(8), "Stale pong matched a new request.");
+        Check(diagnostics.Capture().ApplicationRttMilliseconds == 20 && first.ApplicationRttMilliseconds == 25 &&
+            first.SnapshotAgeMilliseconds == 25, "Immutable observation changed later.");
+        diagnostics.Reset();
+        Check(!diagnostics.MatchPong(8) && diagnostics.Capture() == new SessionMetrics(null, null, null, null),
+            "Fresh rejoin retained nonce, RTT or snapshot age.");
+    }
+
+    private static void PresentationState()
+    {
+        var presentation = new PlayerPresentation();
+        var initial = new PlayerState("old", "Alice", 100, 100, 0);
+        presentation.Update(new[] { initial }, 0.016, true);
+        var moved = initial with
+        {
+            X = 200,
+            Sequence = 1
+        };
+        presentation.Update(new[] { moved }, 0.016, true);
+        DisplayPlayer display = presentation.Players.Single();
+        Check(display.X > 100 && display.X < 200 && moved.X == 200 && display.ServerState == moved,
+            "Smoothing predicted or changed authoritative state.");
+        presentation.Update(new[] { moved }, 0.016, false);
+        Check(presentation.Players.Single().X == 200, "Raw display did not snap to server state.");
+        presentation.Update(Array.Empty<PlayerState>(), 0.016, true);
+        Check(presentation.Players.Count == 0, "Removed player remained visible.");
+        var fresh = moved with
+        {
+            Id = "new",
+            X = 40
+        };
+        presentation.Update(new[] { fresh }, 0.016, true);
+        Check(presentation.Players.Single().X == 40, "Fresh identity reused an old display position.");
+        presentation.Reset();
+        Check(presentation.Players.Count == 0, "Reconnect retained presentation state.");
+        presentation.Update(new[] { initial }, 0.016, true);
+        Check(presentation.Players.Single().X == 100, "Reset did not discard prior smoothing state.");
+    }
+
     private static async Task<TransportEvent> Event(TcpConnection connection, string kind)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -210,6 +272,8 @@ internal static class Program
         {
             using (var first = new TcpConnection())
             {
+                TransportMetrics empty = first.Metrics;
+                Check(empty == TransportMetrics.Empty, "New connection counters are not zero.");
                 Task run = first.RunAsync("127.0.0.1", port);
                 using TcpClient peer = await listener.AcceptTcpClientAsync().WaitAsync(TimeSpan.FromSeconds(5));
                 await Event(first, "connected");
@@ -217,22 +281,31 @@ internal static class Program
                 await peer.GetStream().WriteAsync(response.AsMemory(0, 3));
                 await peer.GetStream().WriteAsync(response.AsMemory(3));
                 Check((await Event(first, "frame")).Frame!.MessageId == RoomSession.Ping, "TCP fragmented receive failed.");
+                TransportMetrics received = first.Metrics;
+                Check(received.RxFrames == 1 && received.RxBytes == response.Length && received.TxFrames == 0 &&
+                    received.PeerEndpoint is not null && empty == TransportMetrics.Empty,
+                    "Receive counters/endpoint or immutable metrics are incorrect.");
                 await peer.GetStream().WriteAsync(response.AsMemory(0, 5));
                 first.Dispose();
                 await run.WaitAsync(TimeSpan.FromSeconds(5));
             }
             using (var second = new TcpConnection())
             {
+                Check(second.Metrics == TransportMetrics.Empty, "Reconnect reused counters or endpoint.");
                 Task run = second.RunAsync("127.0.0.1", port);
                 using TcpClient peer = await listener.AcceptTcpClientAsync().WaitAsync(TimeSpan.FromSeconds(5));
                 await Event(second, "connected");
                 byte[] expected = RoomSession.PingFrame(99);
                 await second.SendAsync(expected);
+                Check(second.Metrics.TxFrames == 1 && second.Metrics.TxBytes == expected.Length,
+                    "Completed local frame write was not counted exactly.");
                 var received = new byte[expected.Length];
                 await peer.GetStream().ReadExactlyAsync(received).AsTask().WaitAsync(TimeSpan.FromSeconds(5));
                 Check(received.SequenceEqual(expected), "TCP send bytes mismatch.");
                 await peer.GetStream().WriteAsync(expected);
                 Check((await Event(second, "frame")).Frame!.Body.SequenceEqual(Decode(expected).Body), "Reconnect retained stale frame bytes.");
+                Check(second.Metrics.RxFrames == 1 && second.Metrics.RxBytes == expected.Length,
+                    "New connection receive counters include old bytes.");
                 peer.Dispose();
                 await Event(second, "closed");
                 await run.WaitAsync(TimeSpan.FromSeconds(5));
@@ -247,6 +320,8 @@ internal static class Program
                 await peer.GetStream().WriteAsync(bad);
                 TransportEvent closed = await Event(malformed, "closed");
                 Check(closed.Message!.Contains("flags", StringComparison.Ordinal), "Malformed frame failure was not visible.");
+                Check(malformed.Metrics.RxBytes == bad.Length && malformed.Metrics.RxFrames == 0,
+                    "Malformed bytes were presented as a decoded frame.");
                 await run.WaitAsync(TimeSpan.FromSeconds(5));
             }
             _passed++;

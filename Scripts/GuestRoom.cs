@@ -6,6 +6,10 @@ namespace Ark.Client;
 public partial class GuestRoom : Node2D
 {
     private readonly RoomSession _room = new();
+    private readonly SessionDiagnostics _diagnostics = new();
+    private readonly PlayerPresentation _presentation = new();
+    private GuestRoomHud _hud = null!;
+    private GuestRoomWorld _world = null!;
     private TcpConnection? _connection;
     private readonly Dictionary<string, string> _options = new(StringComparer.Ordinal);
     private Label _status = null!;
@@ -17,10 +21,15 @@ public partial class GuestRoom : Node2D
     private string? _oldId, _oldPeerId;
     private double _reconnectAt = double.PositiveInfinity;
     private uint _nonce;
+    private double _nextHudUpdate;
     private const float Speed = 180;
 
     public override void _Ready()
     {
+        if (DisplayServer.GetName() != "headless")
+        {
+            GetWindow().MinSize = new Vector2I(1100, 640);
+        }
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
             if (!arg.StartsWith("--", StringComparison.Ordinal))
@@ -43,30 +52,34 @@ public partial class GuestRoom : Node2D
     private string Option(string key, string fallback) => _options.TryGetValue(key, out string? value) ? value : fallback;
     private void BuildControls()
     {
-        var title = new Label { Text = "ARK / GUEST ROOM", Position = new Vector2(24, 12) };
-        title.AddThemeFontSizeOverride("font_size", 28);
-        AddChild(title);
-        var row = new HBoxContainer { Position = new Vector2(24, 52), Size = new Vector2(960, 36) };
-        AddChild(row);
-        _host = new LineEdit { Text = Option("host", "127.0.0.1"), PlaceholderText = "Host", CustomMinimumSize = new Vector2(180, 36) };
-        _port = new LineEdit { Text = Option("port", "19100"), PlaceholderText = "Port", CustomMinimumSize = new Vector2(90, 36) };
-        _name = new LineEdit { Text = Option("name", "Guest"), PlaceholderText = "Guest name", CustomMinimumSize = new Vector2(180, 36) };
-        row.AddChild(_host);
-        row.AddChild(_port);
-        row.AddChild(_name);
-        var connect = new Button { Text = "Connect / Rejoin" };
-        connect.Pressed += () =>
+        _world = new GuestRoomWorld
+        {
+            Position = new Vector2(24, 168),
+            Size = new Vector2(960, 540),
+            ClipContents = true,
+            MouseFilter = Control.MouseFilterEnum.Ignore
+        };
+        AddChild(_world);
+        _hud = new GuestRoomHud();
+        AddChild(_hud);
+        _hud.Initialize(Option("host", "127.0.0.1"), Option("port", "19100"), Option("name", "Guest"));
+        _host = _hud.Host;
+        _port = _hud.Port;
+        _name = _hud.GuestName;
+        _status = _hud.Status;
+        _hud.ConnectRequested += () =>
         {
             _retries = 0;
             Connect();
         };
-        row.AddChild(connect);
-        var disconnect = new Button { Text = "Disconnect" };
-        disconnect.Pressed += Disconnect;
-        row.AddChild(disconnect);
-        _status = new Label { Position = new Vector2(24, 664), Size = new Vector2(960, 44), AutowrapMode = TextServer.AutowrapMode.WordSmart };
-        AddChild(_status);
-        AddChild(new Label { Text = "WASD / arrows to move · server snapshots determine positions · reconnect creates a fresh guest", Position = new Vector2(24, 94) });
+        _hud.DisconnectRequested += Disconnect;
+    }
+
+    private void ResetObservations()
+    {
+        _diagnostics.Reset();
+        _presentation.Reset();
+        _nonce = 0;
     }
 
     private void Connect()
@@ -81,6 +94,7 @@ public partial class GuestRoom : Node2D
 
             _connection?.Dispose();
             _room.Reset();
+            ResetObservations();
             _connection = new TcpConnection();
             _automaticReconnect = true;
             _retryAt = double.PositiveInfinity;
@@ -103,6 +117,7 @@ public partial class GuestRoom : Node2D
         _connection?.Dispose();
         _connection = null;
         _room.Reset();
+        ResetObservations();
         _retryAt = double.PositiveInfinity;
         SetStatus("Disconnected. Rejoin to create a fresh guest.");
     }
@@ -118,6 +133,7 @@ public partial class GuestRoom : Node2D
         _connection?.Dispose();
         _connection = null;
         _room.Reset();
+        ResetObservations();
         SetStatus(message);
         if (_smoke)
         {
@@ -190,6 +206,7 @@ public partial class GuestRoom : Node2D
                     }
                     else if (item.Frame is not null)
                     {
+                        bool hadSnapshot = _room.HasSnapshot;
                         string kind = _room.Apply(item.Frame);
                         if (kind == "accepted")
                         {
@@ -198,11 +215,16 @@ public partial class GuestRoom : Node2D
 
                         if (kind == "snapshot")
                         {
+                            _diagnostics.SnapshotApplied();
+                            if (!hadSnapshot)
+                            {
+                                _nextPing = Math.Min(_nextPing, _clock);
+                            }
                             _joinDeadline = double.PositiveInfinity;
                             _retries = 0;
                             _message = "Lobby · " + _room.Players.Count + "/16 guests · your ID " + _room.PlayerId;
                         }
-                        if (kind == "pong" && _room.LastPong == _nonce)
+                        if (kind == "pong" && _diagnostics.MatchPong(_room.LastPong))
                         {
                             _pongDeadline = double.PositiveInfinity;
                         }
@@ -236,7 +258,8 @@ public partial class GuestRoom : Node2D
             {
                 _nextPing = _clock + 5;
                 _pongDeadline = _clock + 4;
-                Send(RoomSession.PingFrame(++_nonce));
+                _diagnostics.BeginPing(++_nonce);
+                Send(RoomSession.PingFrame(_nonce));
             }
             if (_smoke)
             {
@@ -257,8 +280,15 @@ public partial class GuestRoom : Node2D
             Fail("Two-peer integration timed out.", retry: false);
         }
 
-        _status.Text = _message;
-        QueueRedraw();
+        _presentation.Update(_room.Players, delta, _hud.SmoothingEnabled);
+        _world.Present(_presentation.Players, _room.PlayerId);
+        if (_clock >= _nextHudUpdate)
+        {
+            _nextHudUpdate = _clock + 0.2;
+            _status.Text = _message;
+            _hud.Observe(_room, _connection?.Metrics ?? TransportMetrics.Empty, _diagnostics.Capture(),
+                _connection is not null, _connection?.IsConnected == true);
+        }
     }
 
     private void MoveInput()
@@ -328,58 +358,17 @@ public partial class GuestRoom : Node2D
             Connect();
             return;
         }
-        if (_smokeReconnected && self.Id != _oldId && peer.Id != _oldPeerId)
+        SessionMetrics observed = _diagnostics.Capture();
+        if (_smokeReconnected && self.Id != _oldId && peer.Id != _oldPeerId &&
+            observed.ApplicationRttMilliseconds is double rtt && _connection is not null)
         {
             if (double.IsPositiveInfinity(_smokeSuccessAt))
             {
                 _smokeSuccessAt = _clock + 1;
                 GD.Print("SMOKE PASS " + _name.Text + " old_id=" + _oldId + " new_id=" + self.Id + " peer_id=" + peer.Id + " seq=" + self.Sequence);
+                TransportMetrics transport = _connection.Metrics;
+                GD.Print(FormattableString.Invariant($"SMOKE METRICS {_name.Text} rtt_ms={rtt:F3} pong={observed.MatchedPongNonce} tx_frames={transport.TxFrames} tx_bytes={transport.TxBytes} rx_frames={transport.RxFrames} rx_bytes={transport.RxBytes}"));
             }
-        }
-    }
-
-    public override void _Draw()
-    {
-        var origin = new Vector2(24, 118);
-        DrawRect(new Rect2(origin, new Vector2(RoomSession.Width, RoomSession.Height)), new Color("14263d"));
-        for (int x = 0; x <= RoomSession.Width; x += 60)
-        {
-            DrawLine(origin + new Vector2(x, 0), origin + new Vector2(x, RoomSession.Height), new Color("1c344d"));
-        }
-
-        for (int y = 0; y <= RoomSession.Height; y += 60)
-        {
-            DrawLine(origin + new Vector2(0, y), origin + new Vector2(RoomSession.Width, y), new Color("1c344d"));
-        }
-
-        foreach (PlayerState player in _room.Players)
-        {
-            bool self = player.Id == _room.PlayerId;
-            Vector2 position = origin + new Vector2(player.X, player.Y);
-            Color color = self ? new Color("56e0c3") : new Color("ffbd69");
-            DrawCircle(position, 12, color);
-        }
-
-        Font font = ThemeDB.FallbackFont;
-        float lineHeight = font.GetHeight(16);
-        IReadOnlyList<PlayerLabel> labels = PlayerLabels.Arrange(_room.Players, lineHeight,
-            text => font.GetStringSize(text, HorizontalAlignment.Left, -1, 16).X);
-        foreach (PlayerLabel label in labels)
-        {
-            PlayerState player = _room.Players.First(player => player.Id == label.PlayerId);
-            Color color = player.Id == _room.PlayerId ? new Color("56e0c3") : new Color("ffbd69");
-            LabelRectangle bounds = label.Bounds;
-            Vector2 anchor = origin + new Vector2(bounds.X, bounds.Y + bounds.Height / 2);
-            DrawLine(origin + new Vector2(player.X, player.Y), anchor, new Color(color, 0.45f));
-        }
-        foreach (PlayerLabel label in labels)
-        {
-            Color color = label.PlayerId == _room.PlayerId ? new Color("56e0c3") : new Color("ffbd69");
-            LabelRectangle bounds = label.Bounds;
-            DrawRect(new Rect2(origin + new Vector2(bounds.X, bounds.Y), new Vector2(bounds.Width, bounds.Height)),
-                new Color("14263d"));
-            DrawString(font, origin + new Vector2(bounds.X, bounds.Y + font.GetAscent(16)), label.Text,
-                HorizontalAlignment.Left, -1, 16, color);
         }
     }
 

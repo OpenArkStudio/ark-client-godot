@@ -43,6 +43,10 @@ shows server errors and requires manual retry for rejected joins.
 The client sends movement at most 10 times per second. Transport queues at most
 64 receive events, retains at most one incomplete 4108-byte frame, and allows
 one pending send. Connect and send operations have five-second deadlines; a
-join requires a full snapshot within eight seconds. Joined clients ping every
-five seconds and require the corresponding pong within four seconds. These
+join requires a full snapshot within eight seconds. Joined clients ping after
+the initial snapshot and every five seconds thereafter, requiring the matching pong within four seconds. These
 bounds describe the demonstration, not comprehensive hostile-client protection.
+
+The protocol carries target proposals and authoritative snapshots, without
+prediction or rendering state. Display-only smoothing, raw server markers and
+the live counters/RTT panel are explained in [network and data flow](data-sync.md).

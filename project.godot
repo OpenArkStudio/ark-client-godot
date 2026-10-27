@@ -7,9 +7,10 @@ run/main_scene="res://Scenes/GuestRoom.tscn"
 config/features=PackedStringArray("4.7", "C#", "GL Compatibility")
 
 [display]
-window/size/viewport_width=1008
-window/size/viewport_height=720
+window/size/viewport_width=1384
+window/size/viewport_height=800
 window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
 
 [dotnet]
 project/assembly_name="Ark.Client.Godot"

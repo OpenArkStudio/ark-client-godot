@@ -30,6 +30,10 @@ Godot 安装包包含本地 Godot NuGet 包。无法在线还原时，可在仓�
    确认成员列表和位置随服务端快照更新。
 
 主场景为 `Scenes/GuestRoom.tscn`，C# 节点为 `Scripts/GuestRoom.cs`。
+`GuestRoomHud.cs` 管理原生容器、可折叠诊断与成员列表；`GuestRoomWorld.cs` 绘制程序角色及原始服务端圆环。
+固定 960×540 场地与侧栏共用可调整窗口大小的 1384×800 逻辑画布。
+切换 **Visual smoothing** 可比较平滑显示与原始快照，展开 **Show network details** 可比较最近的提议序列号、目标和确认值。
+RTT 通过应用 nonce 匹配测量，不属于 TCP ACK 或单向延迟。定义见 [数据流程与观测值](data-sync_CN.md)。
 客户端参数位于 Godot 的 `--` 分隔符之后：
 
 ```sh

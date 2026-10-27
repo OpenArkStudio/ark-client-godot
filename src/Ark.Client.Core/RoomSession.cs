@@ -4,6 +4,7 @@ using System.Text.Json;
 namespace Ark.Client.Core;
 
 public sealed record PlayerState(string Id, string Name, float X, float Y, uint Sequence);
+public sealed record MoveProposal(uint Sequence, float X, float Y);
 
 public sealed class RoomSession
 {
@@ -33,6 +34,10 @@ public sealed class RoomSession
     {
         get; private set;
     }
+    public MoveProposal? LastProposedMove
+    {
+        get; private set;
+    }
 
     public static byte[] JoinFrame(string name)
     {
@@ -57,9 +62,10 @@ public sealed class RoomSession
             throw new InvalidOperationException("Movement sequence exhausted; reconnect.");
         }
 
+        LastProposedMove = new MoveProposal(++_sequence, x, y);
         return JsonFrame(Move, new
         {
-            seq = ++_sequence,
+            seq = _sequence,
             x,
             y
         });
@@ -77,6 +83,7 @@ public sealed class RoomSession
         LastError = null;
         HasSnapshot = false;
         LastPong = 0;
+        LastProposedMove = null;
     }
 
     public string Apply(Frame frame)

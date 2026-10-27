@@ -34,6 +34,13 @@ runtime path or replace global NuGet configuration.
    the visible roster and positions follow server snapshots.
 
 The main scene is `Scenes/GuestRoom.tscn`; its C# node is `Scripts/GuestRoom.cs`.
+`GuestRoomHud.cs` owns native containers and the foldable diagnostics/roster;
+`GuestRoomWorld.cs` draws procedural avatars and raw server rings. The fixed
+960×540 arena and side panel share a resizable 1384×800 logical canvas.
+Toggle **Visual smoothing** to compare eased display with raw snapshots, and
+expand **Show network details** to compare the latest proposed sequence/target
+with confirmed values. RTT is a correlated application measurement, not a TCP
+ACK or one-way latency. See [data flow and metric definitions](data-sync.md).
 Client options follow Godot's `--` separator:
 
 ```sh
