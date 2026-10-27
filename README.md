@@ -26,6 +26,8 @@ Open a second client as Bob to see both server-owned players. Use **Disconnect**
 to leave and **Connect / Rejoin** to create a new identity. Unexpected disconnects
 retry up to five times with 1, 2, 4, 8 and 8 second delays; errors remain visible.
 The room has 16 guest slots. Guest names contain at most 64 UTF-8 bytes.
+Visible avatar labels use a 160-pixel limit with an ellipsis and stagger inside
+the arena when they collide. Full names remain unchanged in room state.
 
 See [run and verification](docs/run.md) and the [wire contract](docs/protocol.md).
 The sample provides temporary guest sessions. It does not provide account

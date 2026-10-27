@@ -17,6 +17,7 @@ internal static class Program
             Test("reconnect clears partial frame", ResetCodec);
             Test("authoritative state and fresh identity", SessionState);
             Test("invalid room messages do not replace roster", InvalidState);
+            Test("bounded player label truncation and collision layout", LabelLayout);
             await NetworkSessions();
             Console.WriteLine($"PASS {_passed} checks");
             return 0;
@@ -148,6 +149,35 @@ internal static class Program
         Reject(() => room.Apply(Json(RoomSession.Snapshot, "{\"room\":\"lobby\",\"players\":[]}")));
         Reject(() => room.MoveFrame(float.NaN, 10));
         Check(room.Players.Single().Sequence == 4, "Rejected snapshot mutated roster.");
+    }
+
+    private static void LabelLayout()
+    {
+        static float Measure(string text) => System.Globalization.StringInfo.ParseCombiningCharacters(text).Length * 8;
+        string combining = PlayerLabels.FitText("A\u0301B\u0301C\u0301D\u0301", 24, Measure);
+        Check(combining == "A\u0301B\u0301…", "Truncation split a Unicode text element.");
+        Check(PlayerLabels.FitText("Alice", 160, Measure) == "Alice", "Short names changed.");
+        var nearby = new[] {
+            new PlayerState("9", "VisualAlice", 80, 300, 0),
+            new PlayerState("10", "VisualBob", 180, 300, 0)
+        };
+        IReadOnlyList<PlayerLabel> pair = PlayerLabels.Arrange(nearby, 20, Measure);
+        Check(!pair[0].Bounds.Intersects(pair[1].Bounds), "Nearby labels overlap.");
+        var clustered = Enumerable.Range(1, 16)
+            .Select(id => new PlayerState(id.ToString(), new string('W', 64), 960, 540, 0)).ToArray();
+        IReadOnlyList<PlayerLabel> labels = PlayerLabels.Arrange(clustered, 20, Measure);
+        Check(labels.Count == 16, "Clustered label layout lost players.");
+        for (int index = 0; index < labels.Count; index++)
+        {
+            PlayerLabel label = labels[index];
+            LabelRectangle bounds = label.Bounds;
+            Check(label.Text.EndsWith("…", StringComparison.Ordinal) && Measure(label.Text) <= PlayerLabels.MaximumWidth,
+                "Long label exceeded its measured width.");
+            Check(bounds.X >= 0 && bounds.Y >= 0 && bounds.X + bounds.Width <= RoomSession.Width &&
+                bounds.Y + bounds.Height <= RoomSession.Height, "Label escaped the arena.");
+            Check(labels.Take(index).All(previous => !bounds.Intersects(previous.Bounds)), "Clustered labels overlap.");
+        }
+        Check(clustered.All(player => player.Name.Length == 64), "Display truncation changed the full name.");
     }
 
     private static async Task<TransportEvent> Event(TcpConnection connection, string kind)

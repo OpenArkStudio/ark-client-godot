@@ -358,7 +358,27 @@ public partial class GuestRoom : Node2D
             Vector2 position = origin + new Vector2(player.X, player.Y);
             Color color = self ? new Color("56e0c3") : new Color("ffbd69");
             DrawCircle(position, 12, color);
-            DrawString(ThemeDB.FallbackFont, position + new Vector2(16, 5), player.Name + " #" + player.Id,
+        }
+
+        Font font = ThemeDB.FallbackFont;
+        float lineHeight = font.GetHeight(16);
+        IReadOnlyList<PlayerLabel> labels = PlayerLabels.Arrange(_room.Players, lineHeight,
+            text => font.GetStringSize(text, HorizontalAlignment.Left, -1, 16).X);
+        foreach (PlayerLabel label in labels)
+        {
+            PlayerState player = _room.Players.First(player => player.Id == label.PlayerId);
+            Color color = player.Id == _room.PlayerId ? new Color("56e0c3") : new Color("ffbd69");
+            LabelRectangle bounds = label.Bounds;
+            Vector2 anchor = origin + new Vector2(bounds.X, bounds.Y + bounds.Height / 2);
+            DrawLine(origin + new Vector2(player.X, player.Y), anchor, new Color(color, 0.45f));
+        }
+        foreach (PlayerLabel label in labels)
+        {
+            Color color = label.PlayerId == _room.PlayerId ? new Color("56e0c3") : new Color("ffbd69");
+            LabelRectangle bounds = label.Bounds;
+            DrawRect(new Rect2(origin + new Vector2(bounds.X, bounds.Y), new Vector2(bounds.Width, bounds.Height)),
+                new Color("14263d"));
+            DrawString(font, origin + new Vector2(bounds.X, bounds.Y + font.GetAscent(16)), label.Text,
                 HorizontalAlignment.Left, -1, 16, color);
         }
     }

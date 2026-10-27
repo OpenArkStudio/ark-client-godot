@@ -1,6 +1,6 @@
 # Validation scope
 
-Local validation on 2026-10-26 used macOS arm64, Godot
+Local validation on 2026-10-26 and 2026-10-27 used macOS arm64, Godot
 `4.7.2.stable.mono.official.ed1daf0bf`, .NET SDK `10.0.403`, and .NET runtime
 `8.0.33`. All projects target `net8.0`. A normal .NET 8 SDK provides the matching
 runtime and reference packs; the local SDK 10 setup restored official .NET 8
@@ -8,7 +8,7 @@ reference packs and retained the matching .NET 8 runtime alongside runtime 10.
 
 | Check | Result |
 | --- | --- |
-| Permanent compiled C# checks | 8 groups passed, including shared vectors, every split boundary, multiple frames, maximum lengths, invalid headers, state rejection, real TCP and reconnect |
+| Permanent compiled C# checks | 9 groups passed, including shared vectors, every split boundary, multiple frames, maximum lengths, invalid headers, state rejection, bounded label layout, real TCP and reconnect |
 | Godot C# solution build | Passed, zero warnings and errors |
 | Official .NET editor headless import | Passed |
 | Offline engine scene execution | Passed with explicit C# scene readiness marker |
