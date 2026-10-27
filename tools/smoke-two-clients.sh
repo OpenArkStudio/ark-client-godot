@@ -25,3 +25,7 @@ printf 'Local smoke logs: %s\n' "$logs"
 [[ "$alice_rc" == 0 && "$bob_rc" == 0 ]]
 grep -q '^SMOKE PASS Alice ' "$logs/alice.log"
 grep -q '^SMOKE PASS Bob ' "$logs/bob.log"
+grep -q '^SMOKE PEER ATTRIBUTES Alice ' "$logs/alice.log"
+grep -q '^SMOKE PEER ATTRIBUTES Bob ' "$logs/bob.log"
+grep -q '^SMOKE ATTRIBUTES Alice ' "$logs/alice.log"
+grep -q '^SMOKE ATTRIBUTES Bob ' "$logs/bob.log"

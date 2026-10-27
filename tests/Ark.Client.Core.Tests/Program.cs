@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using Ark.Client.Core;
+using Ark.Client.Testing;
 
 internal static class Program
 {
@@ -23,6 +24,8 @@ internal static class Program
             Test("local role markers and walking follow actual displayed movement", PresentationIdentityAndMotion);
             Test("independent action sequence and exact pending correlation", ActionCorrelation);
             Test("required HP/MP ranges, confirmed deltas and reset", AttributeValidation);
+            Test("smoke evidence requires every own and peer action snapshot", AttributeSmokeEvidence);
+            Test("busy send defers proposal and heartbeat state before preparation", DeferredSendPreparation);
             await NetworkSessions();
             Console.WriteLine($"PASS {_passed} checks");
             return 0;
@@ -406,6 +409,55 @@ internal static class Program
             PlayerPresentation.RoleFor("new", "new") == PlayerRole.Local, "Fresh identity retained animation or a local marker.");
     }
 
+    private static void AttributeSmokeEvidence()
+    {
+        var evidence = new AttributeSmokeProgress();
+        var own = new PlayerState("own", "Alice", 120, 100, 1);
+        var peer = new PlayerState("peer", "Bob", 240, 180, 1);
+        evidence.Observe(new[] { own, peer });
+        Check(evidence.SawFresh("own") && evidence.SawFresh("peer") && !evidence.Completed("own", "peer"),
+            "Fresh defaults were counted as accepted actions.");
+        evidence.Observe(new[] { own with { Hp = 85, ActionSequence = 1 }, peer });
+        Check(!evidence.SawBoth("own", "peer", 0), "Own-only HP confirmation fabricated peer evidence.");
+        evidence.Observe(new[] { own with { Hp = 85, ActionSequence = 1 }, peer with { Hp = 85, ActionSequence = 1 } });
+        evidence.Observe(new[] { own with { Hp = 85, Mp = 80, ActionSequence = 2 }, peer with { Hp = 85, ActionSequence = 1 } });
+        evidence.Observe(new[] { own with { ActionSequence = 3 }, peer with { Hp = 85, Mp = 80, ActionSequence = 2 } });
+        Check(!evidence.Completed("own", "peer"), "Missing peer rest state was accepted.");
+        evidence.Observe(new[] { own with { ActionSequence = 3 }, peer with { ActionSequence = 3 } });
+        evidence.Observe(new[] { own with { Id = "new-own" }, peer with { Id = "new-peer" } });
+        Check(evidence.Completed("own", "peer") && evidence.SawBoth("own", "peer", 0) &&
+            evidence.SawFresh("new-own") && evidence.SawFresh("new-peer") && !evidence.Completed("new-own", "new-peer"),
+            "Batched snapshots/rejoin lost evidence or reused old action state.");
+    }
+
+    private static void DeferredSendPreparation()
+    {
+        var room = new RoomSession();
+        room.Apply(Accepted("1"));
+        room.Apply(Snapshot("1", 0));
+        var diagnostics = new SessionDiagnostics(() => 100);
+        uint nonce = 0;
+        Check(!SendPreparation.TryCreate(true, true, () => room.ActionFrame("damage"), out byte[]? blockedAction) &&
+            blockedAction is null && room.PendingAction is null && room.LastProposedAction is null,
+            "Busy action click consumed a sequence or became pending without a send.");
+        Check(!SendPreparation.TryCreate(true, true, () => room.MoveFrame(150, 160), out _) && room.LastProposedMove is null,
+            "Busy movement consumed a proposal.");
+        bool preparedPing = SendPreparation.TryCreate(true, true, () =>
+        {
+            diagnostics.BeginPing(++nonce);
+            return RoomSession.PingFrame(nonce);
+        }, out _);
+        Check(!preparedPing && nonce == 0 && diagnostics.Capture().PendingPingNonce is null,
+            "Deferred heartbeat started an unsent RTT/deadline state.");
+        Check(!SendPreparation.TryCreate(false, false, () => room.ActionFrame("rest"), out _) && room.PendingAction is null,
+            "Disconnected connection prepared an action.");
+        Check(SendPreparation.TryCreate(true, false, () => room.ActionFrame("damage"), out byte[]? action) &&
+            action is not null && room.PendingAction?.Sequence == 1,
+            "Deferred action did not retain the first usable sequence.");
+        Check(SendPreparation.TryCreate(true, false, () => room.MoveFrame(150, 160), out _) && room.LastProposedMove?.Sequence == 1,
+            "Deferred movement sequence was skipped.");
+    }
+
     private static async Task<TransportEvent> Event(TcpConnection connection, string kind)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -461,6 +513,7 @@ internal static class Program
                 await Event(second, "connected");
                 byte[] expected = RoomSession.PingFrame(99);
                 await second.SendAsync(expected);
+                Check(!second.IsSending, "Completed write left the per-connection send guard busy.");
                 Check(second.Metrics.TxFrames == 1 && second.Metrics.TxBytes == expected.Length,
                     "Completed local frame write was not counted exactly.");
                 var received = new byte[expected.Length];

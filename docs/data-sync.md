@@ -62,6 +62,10 @@ Expand **NETWORK** to compare actual observations:
 | Rx stream bytes | Actual stream-read bytes, including headers, incomplete data and invalid framing; excludes TCP/IP overhead |
 
 A ping starts after the initial snapshot and repeats every five seconds.
+Each connection permits only one in-flight local stream write. A busy connection
+defers movement and heartbeat preparation before consuming a sequence, nonce or
+deadline; an action click reports nonfatal busy feedback without creating a
+pending action. There is no additional send queue and no peer-ACK inference.
 Unavailable observations show an em dash rather than fabricated zero latency.
 Transport counters belong to one `TcpConnection`; a new instance starts at zero.
 Disconnect/rejoin clears proposals, age, pending nonce, RTT and display state.

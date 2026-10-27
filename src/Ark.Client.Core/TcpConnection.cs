@@ -24,6 +24,7 @@ public sealed class TcpConnection : IDisposable
     private int _connected;
     private int _started;
     public bool IsConnected => Volatile.Read(ref _connected) != 0;
+    public bool IsSending => _sendLock.CurrentCount == 0;
     public TransportMetrics Metrics
     {
         get

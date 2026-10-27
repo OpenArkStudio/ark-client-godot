@@ -1,4 +1,5 @@
 using Ark.Client.Core;
+using Ark.Client.Testing;
 using Godot;
 
 namespace Ark.Client;
@@ -9,6 +10,8 @@ public partial class GuestRoom : Node2D
     private readonly SessionDiagnostics _diagnostics = new();
     private readonly PlayerPresentation _presentation = new();
     private readonly ConfirmedAttributes _confirmedAttributes = new();
+    private readonly AttributeSmokeProgress _smokeAttributes = new();
+    private int _smokeActionStage;
     private GuestRoomHud _hud = null!;
     private GuestRoomWorld _world = null!;
     private TcpConnection? _connection;
@@ -82,7 +85,14 @@ public partial class GuestRoom : Node2D
             }
             try
             {
-                Send(_room.ActionFrame(kind));
+                if (TryPrepareSend(() => _room.ActionFrame(kind), out byte[]? frame))
+                {
+                    Send(frame!);
+                }
+                else
+                {
+                    SetStatus("Network busy; action not sent. Try again.");
+                }
             }
             catch (InvalidOperationException error)
             {
@@ -193,6 +203,12 @@ public partial class GuestRoom : Node2D
         }
     }
 
+    private bool TryPrepareSend(Func<byte[]> createFrame, out byte[]? frame)
+    {
+        TcpConnection? connection = _connection;
+        return SendPreparation.TryCreate(connection?.IsConnected == true, connection?.IsSending == true, createFrame, out frame);
+    }
+
     public override void _Process(double delta)
     {
         _clock += delta;
@@ -233,6 +249,10 @@ public partial class GuestRoom : Node2D
 
                         if (kind == "snapshot")
                         {
+                            if (_smoke)
+                            {
+                                _smokeAttributes.Observe(_room.Players);
+                            }
                             _world.ShowAttributeChanges(_confirmedAttributes.Observe(_room.Players), _clock);
                             _diagnostics.SnapshotApplied();
                             if (!hadSnapshot)
@@ -255,6 +275,11 @@ public partial class GuestRoom : Node2D
                         }
                         if (kind == "action_error")
                         {
+                            if (_smoke)
+                            {
+                                Fail("Unexpected smoke action rejection: " + _room.ActionFeedback, retry: false);
+                                break;
+                            }
                             SetStatus(_room.ActionFeedback ?? "Action rejected.");
                         }
                     }
@@ -279,10 +304,17 @@ public partial class GuestRoom : Node2D
             }
             if (_clock >= _nextPing)
             {
-                _nextPing = _clock + 5;
-                _pongDeadline = _clock + 4;
-                _diagnostics.BeginPing(++_nonce);
-                Send(RoomSession.PingFrame(_nonce));
+                if (TryPrepareSend(() =>
+                {
+                    byte[] ping = RoomSession.PingFrame(_nonce + 1);
+                    _nextPing = _clock + 5;
+                    _pongDeadline = _clock + 4;
+                    _diagnostics.BeginPing(++_nonce);
+                    return ping;
+                }, out byte[]? frame))
+                {
+                    Send(frame!);
+                }
             }
             if (_smoke)
             {
@@ -331,7 +363,6 @@ public partial class GuestRoom : Node2D
             return;
         }
 
-        _nextMove = _clock + 0.1;
         PlayerState? self = _room.Players.FirstOrDefault(player => player.Id == _room.PlayerId);
         if (self is null)
         {
@@ -339,17 +370,35 @@ public partial class GuestRoom : Node2D
         }
 
         Vector2 target = new Vector2(self.X, self.Y) + direction.Normalized() * Speed * 0.1f;
-        Send(_room.MoveFrame(Math.Clamp(target.X, 0, RoomSession.Width), Math.Clamp(target.Y, 0, RoomSession.Height)));
+        if (TryPrepareSend(() => _room.MoveFrame(Math.Clamp(target.X, 0, RoomSession.Width), Math.Clamp(target.Y, 0, RoomSession.Height)), out byte[]? frame))
+        {
+            _nextMove = _clock + 0.1;
+            Send(frame!);
+        }
     }
 
     private void Smoke()
     {
+        if (_connection?.IsConnected != true || _connection.IsSending)
+        {
+            return;
+        }
         string peerName = Option("peer-name", _name.Text == "Alice" ? "Bob" : "Alice");
         PlayerState? peer = _room.Players.FirstOrDefault(player => player.Name == peerName);
         PlayerState? self = _room.Players.FirstOrDefault(player => player.Id == _room.PlayerId);
         float targetX = _name.Text == "Alice" ? 120 : 240;
         float targetY = _name.Text == "Alice" ? 100 : 180;
-        if (peer is null || self is null)
+        if (self is null)
+        {
+            return;
+        }
+        _oldId ??= self.Id;
+        if (peer is not null)
+        {
+            _oldPeerId ??= peer.Id;
+        }
+        bool actionsComplete = _oldPeerId is not null && _smokeAttributes.Completed(_oldId, _oldPeerId);
+        if (peer is null && (!actionsComplete || _smokeReconnected))
         {
             return;
         }
@@ -362,17 +411,28 @@ public partial class GuestRoom : Node2D
         }
         bool ownMove = self.Sequence >= 1 && Math.Abs(self.X - targetX) < 0.01 && Math.Abs(self.Y - targetY) < 0.01;
         float peerX = peerName == "Alice" ? 120 : 240, peerY = peerName == "Alice" ? 100 : 180;
-        bool peerMove = peer.Sequence >= 1 && Math.Abs(peer.X - peerX) < 0.01 && Math.Abs(peer.Y - peerY) < 0.01;
-        if (!ownMove || !peerMove)
+        bool peerMove = peer is not null && peer.Sequence >= 1 && Math.Abs(peer.X - peerX) < 0.01 && Math.Abs(peer.Y - peerY) < 0.01;
+        if (!ownMove || (!peerMove && (!actionsComplete || _smokeReconnected)))
         {
+            return;
+        }
+
+        if (!_smokeReconnected && !actionsComplete)
+        {
+            if (_oldPeerId is not null && _smokeActionStage < AttributeSmokeProgress.Kinds.Length && _room.PendingAction is null &&
+                (_smokeActionStage == 0 || _smokeAttributes.SawBoth(_oldId, _oldPeerId, _smokeActionStage - 1)))
+            {
+                string action = AttributeSmokeProgress.Kinds[_smokeActionStage++];
+                Send(_room.ActionFrame(action));
+                GD.Print($"SMOKE ACTION {_name.Text} {action} id={self.Id}");
+            }
             return;
         }
 
         if (!_smokeReconnected && double.IsPositiveInfinity(_reconnectAt))
         {
-            _oldId = self.Id;
-            _oldPeerId = peer.Id;
             _reconnectAt = _clock + (_name.Text == "Alice" ? 0.3 : 1.0);
+            GD.Print($"SMOKE PEER ATTRIBUTES {_name.Text} own_id={_oldId} peer_id={_oldPeerId} damage=85/100 skill=85/80 rest=100/100 action_seq=3");
         }
         if (!_smokeReconnected && _clock >= _reconnectAt)
         {
@@ -382,13 +442,17 @@ public partial class GuestRoom : Node2D
             return;
         }
         SessionMetrics observed = _diagnostics.Capture();
-        if (_smokeReconnected && self.Id != _oldId && peer.Id != _oldPeerId &&
+        if (_smokeReconnected && peer is not null && self.Id != _oldId && peer.Id != _oldPeerId &&
+            _smokeAttributes.SawFresh(self.Id) && _smokeAttributes.SawFresh(peer.Id) &&
+            self.Hp == 100 && self.Mp == 100 && self.ActionSequence == 0 && peer.Hp == 100 && peer.Mp == 100 && peer.ActionSequence == 0 &&
+            _room.PendingAction is null && _room.LastProposedAction is null &&
             observed.ApplicationRttMilliseconds is double rtt && _connection is not null)
         {
             if (double.IsPositiveInfinity(_smokeSuccessAt))
             {
                 _smokeSuccessAt = _clock + 1;
                 GD.Print("SMOKE PASS " + _name.Text + " old_id=" + _oldId + " new_id=" + self.Id + " peer_id=" + peer.Id + " seq=" + self.Sequence);
+                GD.Print($"SMOKE ATTRIBUTES {_name.Text} own_hp=100 own_mp=100 own_action_seq=0 peer_hp=100 peer_mp=100 peer_action_seq=0 old_peer_actions_observed=3");
                 TransportMetrics transport = _connection.Metrics;
                 GD.Print(FormattableString.Invariant($"SMOKE METRICS {_name.Text} rtt_ms={rtt:F3} pong={observed.MatchedPongNonce} tx_frames={transport.TxFrames} tx_bytes={transport.TxBytes} rx_frames={transport.RxFrames} rx_bytes={transport.RxBytes}"));
             }

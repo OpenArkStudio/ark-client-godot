@@ -4,14 +4,26 @@
 
 The attribute branch adds a paired ARK2/8192-byte protocol, required HP/MP fields,
 independent actions and correlated nonfatal rejection. Permanent C# checks cover
-14 groups, including action correlation, invalid/missing/range boundaries,
-sequence caps, confirmed-only deltas, dense stat-panel bounds and reconnect reset.
-The local 14-group executable, whitespace/IDE0011 checks and Godot C# build passed;
+16 groups, including action correlation, invalid/missing/range boundaries,
+sequence caps, confirmed-only deltas, dense stat-panel bounds, reconnect reset,
+deferred send preparation and complete own/peer attribute smoke evidence.
+The local 16-group executable, whitespace/IDE0011 checks and Godot C# build passed;
 the build reported zero warnings/errors. Official engine import and offline
 execution passed with the ARK2 C# readiness marker.
 
-Real-server HP/MP integration, new visual inspection and hosted ARK2 checks are
-pending. The accepted ARK1 receipts below do not validate this attribute change.
+On 2026-10-27, two real Godot .NET engines passed against ark server
+`8221a6f1bad2802e58783fa365cdd634c07ee144` on a private loopback listener.
+Both clients observed their own and the peer's confirmed damage (85 HP / 100 MP),
+skill (85 / 80) and rest (100 / 100) at action sequences 1, 2 and 3. Both also
+observed authoritative movement and rejoined with fresh IDs, 100 HP/MP, action
+sequence zero and no pending/replayed action. The owned clients exited and the
+server stopped normally. The runtime selected JSON Entity/business resources;
+its existing plugin-bootstrap configuration wrapper remained XML.
+
+New populated-window visual inspection and hosted checks for the follow-up send
+guard/smoke changes remain separate acceptance steps. The accepted ARK1 receipts
+below do not validate this attribute change. This short integration check is not
+a repeat of the historical five-minute campaign or a performance test.
 
 ## Accepted ARK1 baseline
 

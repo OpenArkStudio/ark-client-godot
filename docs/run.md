@@ -26,8 +26,11 @@ runtime path or replace global NuGet configuration.
    `bash tools/check-engine.sh`.
 5. Exercise two real engine clients against the running server with
    `bash tools/smoke-two-clients.sh 127.0.0.1 19100`. Each client must see both
-   players and their authoritative moves, reconnect with a fresh ID, see the
-   peer's replacement ID, and print `SMOKE PASS`. The script retains logs in a
+   players and their authoritative moves, confirm both players' damage → skill
+   → rest snapshots at action sequences 1 → 2 → 3, and reconnect with fresh IDs.
+   Both new identities must have 100 HP/MP, action sequence zero and no replayed
+   pending action. The logs must include `SMOKE PEER ATTRIBUTES`,
+   `SMOKE ATTRIBUTES` and `SMOKE PASS`. The script retains logs in a
    local temporary directory and returns nonzero on failure.
 6. Open `project.godot` in the .NET editor for visual inspection. Run two windows,
    join as Alice and Bob, move with WASD/arrows, disconnect, and rejoin. Confirm

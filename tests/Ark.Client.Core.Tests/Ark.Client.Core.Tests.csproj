@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Ark.Client.Core/Ark.Client.Core.csproj" />
+    <Compile Include="../Support/AttributeSmokeProgress.cs" Link="AttributeSmokeProgress.cs" />
     <None Include="../fixtures/wire-vectors.json" Link="wire-vectors.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

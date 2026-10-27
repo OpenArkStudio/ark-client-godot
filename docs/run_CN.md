@@ -22,8 +22,10 @@ Godot 安装包包含本地 Godot NuGet 包。无法在线还原时，可在仓�
 4. 执行 `bash tools/check-engine.sh`，解析场景并进行短时离线无界面运行。
 5. 执行 `bash tools/smoke-two-clients.sh 127.0.0.1 19100`，
    将两个真实引擎客户端连接至运行中的服务端。
-   每个客户端必须观察两名玩家及服务端确认的移动，以新 ID 重新加入，
-   再观察另一客户端的新 ID，并输出 `SMOKE PASS`。
+   每个客户端必须观察两名玩家及服务端确认的移动，确认双方受伤 → 技能 → 休息的快照，
+   对应动作序列号 1 → 2 → 3，然后以新 ID 重新加入。
+   双方新身份的 HP/MP 必须为 100、动作序列号为零，且没有重放的待确认动作。
+   日志必须包含 `SMOKE PEER ATTRIBUTES`、`SMOKE ATTRIBUTES` 与 `SMOKE PASS`。
    脚本将日志保留在本地临时目录；检查失败时返回非零退出码。
 6. 在 .NET 编辑器中打开 `project.godot`，检查可见界面。
    启动两个窗口，分别以 Alice 和 Bob 加入，使用 WASD 或方向键移动，再断开并重新加入。
