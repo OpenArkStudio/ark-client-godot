@@ -12,7 +12,7 @@
   authentication, persistence, or compatibility with legacy Unity protocols.
 - Keep English and Chinese documentation aligned with changed behavior. Document
   exact prerequisites, commands, tested revisions and material limitations.
-- Follow the ark/arknet README layout: shared light/dark ARK branding, language
+- Follow the ark/arknet README layout: separate light/dark ARK and Godot pictures, language
   navigation, centered introduction and badges, then concise features and setup.
   Keep packet magic and internal test labels in protocol documentation rather
   than presenting them as product names or release versions.
