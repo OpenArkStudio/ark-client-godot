@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Ark.Client.Core/Ark.Client.Core.csproj" />
+    <None Include="../fixtures/wire-vectors.json" Link="wire-vectors.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

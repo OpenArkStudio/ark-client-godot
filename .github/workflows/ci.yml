@@ -1,0 +1,72 @@
+name: Client checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: client-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  client:
+    name: C# checks (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2022]
+    defaults:
+      run:
+        shell: bash
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_GENERATE_ASPNET_CERTIFICATE: 'false'
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.427
+          skip-lts-prepass: true
+      - name: Select the exact SDK
+        run: |
+          printf '{"sdk":{"version":"8.0.427","rollForward":"disable"}}\n' > global.json
+          dotnet --version
+      - name: Compile and run portable C# checks
+        run: bash tools/test-core.sh
+      - name: Verify portable C# formatting
+        run: bash tools/check-format.sh --core-only
+      - name: Fetch checksum-verified Godot .NET
+        if: runner.os == 'Linux'
+        run: |
+          version=4.7.2
+          archive="Godot_v${version}-stable_mono_linux_x86_64.zip"
+          runtime_dir="$RUNNER_TEMP/godot-dotnet"
+          mkdir -p "$runtime_dir"
+          curl --fail --silent --show-error --location --retry 3 \
+            "https://github.com/godotengine/godot-builds/releases/download/${version}-stable/$archive" \
+            --output "$runtime_dir/$archive"
+          printf '%s  %s\n' \
+            '1855960b27ee3ef5e66e5e228cced69d55637b24334a7411162687dcd077d8f9f645348cdb8eae984bec8135d49ed855a1e3a16476786b8bce60774fd8402d13' \
+            "$runtime_dir/$archive" | sha512sum --check --strict
+          unzip -q "$runtime_dir/$archive" -d "$runtime_dir"
+          engine_dir="$runtime_dir/Godot_v${version}-stable_mono_linux_x86_64"
+          engine="$engine_dir/Godot_v${version}-stable_mono_linux.x86_64"
+          test -x "$engine"
+          dotnet nuget add source "$engine_dir/GodotSharp/Tools/nupkgs" --name godot-bundled
+          printf 'GODOT=%s\n' "$engine" >> "$GITHUB_ENV"
+      - name: Build Godot C# and verify scene formatting
+        if: runner.os == 'Linux'
+        run: |
+          bash tools/build.sh
+          bash tools/check-format.sh --scene-only
+      - name: Import and run the offline Godot C# scene
+        if: runner.os == 'Linux'
+        run: bash tools/check-engine.sh
