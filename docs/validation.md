@@ -26,13 +26,18 @@ SDK `8.0.427`; a normal .NET 8 SDK supplies the required runtime and reference p
 | Server restart | The same two persistent Godot processes automatically rejoined; another action/movement/rejoin pair passed after restart |
 | Cleanup | Both owned server instances exited normally; all 26 owned child processes exited and were reaped |
 | Hosted client checks | [Run 40452878174](https://github.com/OpenArkStudio/ark-client-godot/actions/runs/40452878174) passed all three OS jobs at the runtime revision above; Linux also built/imported/ran the offline Godot scene |
-| Visual/manual controls | Village art, YOU/PLAYER labels, distinct markers and keyboard movement were reviewed before the attribute change. Populated HP/MP controls still require a separate visual/manual review |
+| Rendered interface | The engine exported its own viewport during the real two-client smoke. The village, YOU/PLAYER markers, populated HP/MP bars and action controls were inspected. Manual clicks on the new controls remain outside this check |
 
 The server is the actual ark launcher with Net, Bus, Utility, Kernel and the
 room plugin, rather than a replacement TCP server. Each smoke pair requires
 both its own and the peer's intermediate attribute states before reconnect;
 checking only a final 100/100 snapshot would not satisfy it. A fresh connection
 loads 100 HP/MP, action sequence 0 and no pending or replayed action.
+
+The [room preview](images/room.png) is an unmodified engine-rendered frame from
+that functional run, not a latency measurement. Movie recording adds overhead;
+the displayed RTT must not be interpreted as benchmark data. No desktop capture
+or manual input was used for this rendering check.
 
 The server selects JSON Entity fields and business profiles. The existing
 plugin-bootstrap configuration wrapper remains XML. See [data synchronization](data-sync.md)

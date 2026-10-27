@@ -8,6 +8,8 @@ HP/MP 条以及 **Take hit**、**Use skill**、**Rest** 按钮演示服务端拥
 
 [English](README.md)
 
+![真实双客户端房间、玩家身份标记与服务端 HP/MP](docs/images/room.png)
+
 ## 运行
 
 前置条件：Godot **4.7.2 .NET**、**.NET 8 SDK**，以及配套的 **ARK2** ark `guest_room` 示例服务端。

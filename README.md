@@ -9,6 +9,8 @@ snapshots change values or produce floating delta feedback. Action rejection is 
 
 [中文说明](README_CN.md)
 
+![Two real guests with distinct player markers and authoritative HP/MP](docs/images/room.png)
+
 ## Run
 
 Prerequisites: Godot **4.7.2 .NET**, a **.NET 8 SDK**, and the companion ark
