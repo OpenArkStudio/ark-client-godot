@@ -1,4 +1,10 @@
-# Art credits
+# Art and logo credits
+
+## Godot Engine logo
+
+The separate Godot wordmark in the README uses the original light/dark SVGs from the [official press kit](https://godotengine.org/press/): [light](https://godotengine.org/assets/press/logo_small_color_light.svg) and [dark](https://godotengine.org/assets/press/logo_small_color_dark.svg). Copyright (c) 2017 Andrea Calabró; [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), with the [upstream notice included](images/godot/LICENSE.txt). The files are unchanged and displayed at their original proportions to identify the engine used by this independent OpenArkStudio demo.
+
+## Ninja Adventure
 
 The plaza terrain, village scenery, character sheets and shadows use a selected
 unmodified subset of **Ninja Adventure**, by **Pixel-Boy and AAA**, under

@@ -1,5 +1,11 @@
 # 素材署名
 
+## Godot Engine 标志
+
+README 中独立的 Godot 标志使用[官方媒体素材](https://godotengine.org/press/)提供的原始深浅色 SVG：[浅色背景](https://godotengine.org/assets/press/logo_small_color_light.svg)与[深色背景](https://godotengine.org/assets/press/logo_small_color_dark.svg)。版权所有 (c) 2017 Andrea Calabró，采用 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)，随附[上游许可声明](images/godot/LICENSE.txt)。文件未经修改，按原始比例显示，用于标识本独立 OpenArkStudio 演示使用的引擎。
+
+## Ninja Adventure
+
 广场地形、村庄装饰、角色图集和阴影使用 **Pixel-Boy 与 AAA** 制作的 **Ninja Adventure**
 素材中的选定原始文件，采用 **CC0 1.0 Universal**。客户端代码仍采用 Apache-2.0。
 
