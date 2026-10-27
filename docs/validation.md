@@ -8,7 +8,7 @@ reference packs and retained the matching .NET 8 runtime alongside runtime 10.
 
 | Check | Result |
 | --- | --- |
-| Permanent compiled C# checks | 11 groups passed, covering shared vectors, split/multiple frames, lengths/headers, state/sequence separation, bounded labels, immutable counters, nonce-correlated RTT/age/reset, display smoothing/removal/fresh IDs, real TCP and reconnect |
+| Permanent compiled C# checks | 12 groups passed, covering shared vectors, split/multiple frames, lengths/headers, state/sequence separation, bounded labels, immutable counters, nonce-correlated RTT/age/reset, display smoothing/removal/fresh IDs, role identity and displacement-driven walking, real TCP and reconnect |
 | Godot C# solution build | Passed, zero warnings and errors |
 | Official .NET editor headless import | Passed |
 | Offline engine scene execution | Passed with explicit C# scene readiness marker |

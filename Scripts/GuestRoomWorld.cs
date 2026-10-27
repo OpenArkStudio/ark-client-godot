@@ -7,69 +7,138 @@ public partial class GuestRoomWorld : Control
 {
     private IReadOnlyList<DisplayPlayer> _players = Array.Empty<DisplayPlayer>();
     private string? _localId;
+    private bool _rawMarkers;
+    private Texture2D _floor = null!, _village = null!, _ninja = null!, _samurai = null!, _shadow = null!, _pot = null!, _crate = null!;
+    private readonly StyleBoxFlat _nameplate = new()
+    {
+        BgColor = new Color(0.06f, 0.12f, 0.15f, 0.92f),
+        CornerRadiusTopLeft = 4,
+        CornerRadiusTopRight = 4,
+        CornerRadiusBottomLeft = 4,
+        CornerRadiusBottomRight = 4
+    };
 
-    public void Present(IReadOnlyList<DisplayPlayer> players, string? localId)
+    public override void _Ready()
+    {
+        TextureFilter = TextureFilterEnum.Nearest;
+        const string art = "res://Assets/NinjaAdventure/";
+        _floor = GD.Load<Texture2D>(art + "map/tileset_floor.png");
+        _village = GD.Load<Texture2D>(art + "map/tileset_village_abandoned.png");
+        _ninja = GD.Load<Texture2D>(art + "character/ninja_blue/sprite.png");
+        _samurai = GD.Load<Texture2D>(art + "character/samurai_blue/sprite.png");
+        _shadow = GD.Load<Texture2D>(art + "character/Shadow.png");
+        _pot = GD.Load<Texture2D>(art + "destroyable/pot.png");
+        _crate = GD.Load<Texture2D>(art + "destroyable/crate.png");
+    }
+
+    public void Present(IReadOnlyList<DisplayPlayer> players, string? localId, bool rawMarkers)
     {
         _players = players;
         _localId = localId;
+        _rawMarkers = rawMarkers;
         QueueRedraw();
     }
 
+    private static bool IsPath(int x, int y) => x >= 0 && x < 20 && y >= 0 && y < 12 &&
+        ((x >= 1 && x <= 7 && y >= 1 && y <= 4) || (x >= 7 && x <= 13 && y >= 4 && y <= 9) ||
+         (x >= 2 && x <= 16 && y >= 4 && y <= 5) || (x >= 14 && x <= 15 && y >= 1 && y <= 5));
+
     public override void _Draw()
     {
-        DrawRect(new Rect2(Vector2.Zero, new Vector2(RoomSession.Width, RoomSession.Height)), new Color("101d2c"));
-        for (int x = 0; x <= RoomSession.Width; x += 60)
+        DrawRect(new Rect2(Vector2.Zero, new Vector2(960, 540)), new Color("74894b"));
+        for (int y = 0; y < 12; y++)
         {
-            DrawLine(new Vector2(x, 0), new Vector2(x, RoomSession.Height), new Color("1b3045"));
-        }
-        for (int y = 0; y <= RoomSession.Height; y += 60)
-        {
-            DrawLine(new Vector2(0, y), new Vector2(RoomSession.Width, y), new Color("1b3045"));
-        }
-        Font font = ThemeDB.FallbackFont;
-        DrawString(font, new Vector2(18, 28), "LOBBY  /  960 × 540", HorizontalAlignment.Left, -1, 17, new Color("91a7bd"));
-        foreach (DisplayPlayer display in _players)
-        {
-            Color color = display.ServerState.Id == _localId ? new Color("56e0c3") : new Color("ffbd69");
-            Vector2 server = new(display.ServerState.X, display.ServerState.Y);
-            Vector2 position = new(display.X, display.Y);
-            DrawArc(server, 20, 0, Mathf.Tau, 32, new Color(color, 0.5f), 1.5f, true);
-            DrawLine(server, position, new Color(color, 0.35f));
-            DrawEllipseShadow(position);
-            DrawRect(new Rect2(position + new Vector2(-9, -1), new Vector2(18, 16)), color);
-            DrawCircle(position + new Vector2(0, -8), 10, color.Lightened(0.12f));
-            DrawCircle(position + new Vector2(-3, -9), 1.5f, new Color("142237"));
-            DrawCircle(position + new Vector2(3, -9), 1.5f, new Color("142237"));
-            if (display.ServerState.Id == _localId)
+            for (int x = 0; x < 20; x++)
             {
-                DrawColoredPolygon(new[] { position + new Vector2(-5, -30), position + new Vector2(5, -30),
-                    position + new Vector2(0, -24) }, color);
+                Rect2 region = (x * 7 + y * 3) % 5 == 0 ? new Rect2(32, 192, 16, 16) : new Rect2(48, 176, 16, 16);
+                if (IsPath(x, y))
+                {
+                    int column = !IsPath(x - 1, y) ? 0 : !IsPath(x + 1, y) ? 2 : 1;
+                    int row = !IsPath(x, y - 1) ? 0 : !IsPath(x, y + 1) ? 2 : 1;
+                    region = new Rect2(column * 16, 112 + row * 16, 16, 16);
+                }
+                DrawTextureRectRegion(_floor, new Rect2(x * 48, y * 48, 48, 48), region);
             }
         }
-        PlayerState[] visible = _players.Select(display => display.ServerState with { X = display.X, Y = display.Y }).ToArray();
-        IReadOnlyList<PlayerLabel> labels = PlayerLabels.Arrange(visible, font.GetHeight(16),
-            text => font.GetStringSize(text, HorizontalAlignment.Left, -1, 16).X);
-        foreach (PlayerLabel label in labels)
+        // All scenery is decorative: the server still validates only the unchanged arena bounds.
+        Scenery(new Rect2(0, 0, 64, 48), new Vector2(454, 8), 2);
+        Scenery(new Rect2(176, 96, 80, 80), new Vector2(700, 32), 2);
+        Scenery(new Rect2(0, 96, 64, 64), new Vector2(-18, 348), 3);
+        Scenery(new Rect2(64, 96, 32, 32), new Vector2(836, 396), 3);
+        Scenery(new Rect2(0, 96, 64, 64), new Vector2(-42, -66), 2);
+        Scenery(new Rect2(112, 80, 32, 32), new Vector2(468, 310), 3);
+        Scenery(new Rect2(0, 48, 16, 32), new Vector2(386, 24), 2);
+        Scenery(new Rect2(0, 48, 16, 32), new Vector2(852, 264), 2);
+        DrawTextureRect(_pot, new Rect2(310, 130, 42, 48), false);
+        DrawTextureRect(_pot, new Rect2(682, 198, 42, 48), false);
+        DrawTextureRect(_crate, new Rect2(846, 206, 42, 45), false);
+        DrawTextureRect(_crate, new Rect2(198, 446, 42, 45), false);
+        foreach (DisplayPlayer display in _players.OrderBy(player => player.Y))
         {
-            PlayerState player = visible.First(player => player.Id == label.PlayerId);
-            LabelRectangle bounds = label.Bounds;
-            DrawLine(new Vector2(player.X, player.Y), new Vector2(bounds.X, bounds.Y + bounds.Height / 2), new Color("66849c"));
+            DrawPlayer(display);
         }
-        foreach (PlayerLabel label in labels)
-        {
-            LabelRectangle bounds = label.Bounds;
-            Color color = label.PlayerId == _localId ? new Color("56e0c3") : new Color("ffbd69");
-            DrawRect(new Rect2(new Vector2(bounds.X, bounds.Y), new Vector2(bounds.Width, bounds.Height)), new Color("101d2c"));
-            DrawString(font, new Vector2(bounds.X, bounds.Y + font.GetAscent(16)), label.Text,
-                HorizontalAlignment.Left, -1, 16, color);
-        }
-        DrawRect(new Rect2(Vector2.Zero, new Vector2(RoomSession.Width, RoomSession.Height)), new Color("37506b"), false, 2);
+        DrawNameplates();
+        DrawRect(new Rect2(Vector2.Zero, new Vector2(960, 540)), new Color("3e5942"), false, 3);
     }
 
-    private void DrawEllipseShadow(Vector2 position)
+    private void Scenery(Rect2 region, Vector2 position, int scale) =>
+        DrawTextureRectRegion(_village, new Rect2(position, region.Size * scale), region);
+
+    private void DrawPlayer(DisplayPlayer display)
     {
-        DrawSetTransform(position + new Vector2(0, 14), 0, new Vector2(1, 0.35f));
-        DrawCircle(Vector2.Zero, 16, new Color(0, 0, 0, 0.35f));
+        bool local = PlayerPresentation.RoleFor(display.ServerState.Id, _localId) == PlayerRole.Local;
+        Vector2 position = new(display.X, display.Y);
+        Color accent = local ? new Color("8ffff0") : new Color("ffe1a3");
+        if (_rawMarkers)
+        {
+            Vector2 raw = new(display.ServerState.X, display.ServerState.Y);
+            DrawArc(raw, 23, 0, Mathf.Tau, 32, new Color("ffffff"), 1.5f, true);
+            DrawLine(raw, position, new Color("ffffff"));
+        }
+        DrawTextureRect(_shadow, new Rect2(position + new Vector2(-24, -6), new Vector2(48, 24)), false);
+        DrawSetTransform(position + new Vector2(0, 8), 0, new Vector2(1, 0.45f));
+        DrawArc(Vector2.Zero, local ? 23 : 20, 0, Mathf.Tau, 32, accent, local ? 3 : 1, true);
+        if (local)
+        {
+            DrawArc(Vector2.Zero, 29, 0, Mathf.Tau, 32, new Color("ffffff"), 1.5f, true);
+        }
         DrawSetTransform(Vector2.Zero);
+        int direction = Math.Abs(display.FacingX) > Math.Abs(display.FacingY)
+            ? display.FacingX < 0 ? 2 : 3 : display.FacingY < 0 ? 1 : 0;
+        int frame = display.IsWalking ? (int)display.WalkPhase : 0;
+        DrawTextureRectRegion(local ? _ninja : _samurai, new Rect2(position + new Vector2(-24, -42), new Vector2(48, 48)),
+            new Rect2(direction * 16, frame * 16, 16, 16));
+        Vector2 marker = position + new Vector2(0, -51);
+        if (local)
+        {
+            DrawColoredPolygon(new[] { marker + new Vector2(0, -6), marker + new Vector2(6, 0),
+                marker + new Vector2(0, 6), marker + new Vector2(-6, 0) }, new Color("ffffff"));
+            DrawCircle(marker, 2, accent.Darkened(0.55f));
+        }
+        else
+        {
+            DrawArc(marker, 5, 0, Mathf.Tau, 16, new Color("ffffff"), 2, true);
+        }
+    }
+
+    private void DrawNameplates()
+    {
+        Font font = ThemeDB.FallbackFont;
+        PlayerState[] visible = _players.Select(display => display.ServerState with
+        {
+            X = display.X,
+            Y = display.Y - 44,
+            Name = (PlayerPresentation.RoleFor(display.ServerState.Id, _localId) == PlayerRole.Local ? "YOU · " : "PLAYER · ") + display.ServerState.Name
+        }).ToArray();
+        IReadOnlyList<PlayerLabel> labels = PlayerLabels.Arrange(visible, font.GetHeight(13),
+            text => font.GetStringSize(text, HorizontalAlignment.Left, -1, 13).X);
+        foreach (PlayerLabel label in labels)
+        {
+            LabelRectangle bounds = label.Bounds;
+            var rectangle = new Rect2(new Vector2(bounds.X - 4, bounds.Y - 2), new Vector2(bounds.Width + 8, bounds.Height + 4));
+            DrawStyleBox(_nameplate, rectangle);
+            DrawString(font, new Vector2(bounds.X, bounds.Y + font.GetAscent(13)), label.Text,
+                HorizontalAlignment.Left, -1, 13, new Color("ffffff"));
+        }
     }
 }

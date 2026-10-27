@@ -30,10 +30,13 @@ Godot 安装包包含本地 Godot NuGet 包。无法在线还原时，可在仓�
    确认成员列表和位置随服务端快照更新。
 
 主场景为 `Scenes/GuestRoom.tscn`，C# 节点为 `Scripts/GuestRoom.cs`。
-`GuestRoomHud.cs` 管理原生容器、可折叠诊断与成员列表；`GuestRoomWorld.cs` 绘制程序角色及原始服务端圆环。
-固定 960×540 场地与侧栏共用可调整窗口大小的 1384×800 逻辑画布。
-切换 **Visual smoothing** 可比较平滑显示与原始快照，展开 **Show network details** 可比较最近的提议序列号、目标和确认值。
+`GuestRoomHud.cs` 管理原生容器、可折叠诊断与成员列表；`GuestRoomWorld.cs` 绘制授权像素素材组成的广场与角色。
+固定 960×540 场地居中放置在可缩放的 1120×780 逻辑画布内，诊断默认折叠。
+切换 **Visual smoothing** 可比较平滑显示与原始快照，展开 **NETWORK** 可比较最近的提议序列号、目标和确认值。
 RTT 通过应用 nonce 匹配测量，不属于 TCP ACK 或单向延迟。定义见 [数据流程与观测值](data-sync_CN.md)。
+在 NETWORK 中开启 **Raw server markers** 可观察权威位置；默认地面环用于身份识别。
+本地玩家有 YOU 文字、菱形与双环；其他成员有 PLAYER 文字与空心标记。
+精灵行走和朝向依据实际显示位移更新。装饰仅用于显示，不增加碰撞。
 客户端参数位于 Godot 的 `--` 分隔符之后：
 
 ```sh

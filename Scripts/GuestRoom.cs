@@ -28,7 +28,7 @@ public partial class GuestRoom : Node2D
     {
         if (DisplayServer.GetName() != "headless")
         {
-            GetWindow().MinSize = new Vector2I(1100, 640);
+            GetWindow().MinSize = new Vector2I(960, 680);
         }
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
@@ -54,7 +54,7 @@ public partial class GuestRoom : Node2D
     {
         _world = new GuestRoomWorld
         {
-            Position = new Vector2(24, 168),
+            Position = new Vector2(80, 168),
             Size = new Vector2(960, 540),
             ClipContents = true,
             MouseFilter = Control.MouseFilterEnum.Ignore
@@ -281,7 +281,7 @@ public partial class GuestRoom : Node2D
         }
 
         _presentation.Update(_room.Players, delta, _hud.SmoothingEnabled);
-        _world.Present(_presentation.Players, _room.PlayerId);
+        _world.Present(_presentation.Players, _room.PlayerId, _hud.RawMarkersEnabled);
         if (_clock >= _nextHudUpdate)
         {
             _nextHudUpdate = _clock + 0.2;

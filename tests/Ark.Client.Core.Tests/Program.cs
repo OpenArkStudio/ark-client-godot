@@ -20,6 +20,7 @@ internal static class Program
             Test("bounded player label truncation and collision layout", LabelLayout);
             Test("monotonic snapshot age and correlated application RTT reset", DiagnosticsCorrelation);
             Test("display smoothing preserves server state and fresh identities", PresentationState);
+            Test("local role markers and walking follow actual displayed movement", PresentationIdentityAndMotion);
             await NetworkSessions();
             Console.WriteLine($"PASS {_passed} checks");
             return 0;
@@ -240,6 +241,28 @@ internal static class Program
         Check(presentation.Players.Count == 0, "Reconnect retained presentation state.");
         presentation.Update(new[] { initial }, 0.016, true);
         Check(presentation.Players.Single().X == 100, "Reset did not discard prior smoothing state.");
+    }
+
+    private static void PresentationIdentityAndMotion()
+    {
+        Check(PlayerPresentation.RoleFor("1", "1") == PlayerRole.Local &&
+            PlayerPresentation.RoleFor("2", "1") == PlayerRole.Peer &&
+            PlayerPresentation.RoleFor("1", null) == PlayerRole.Peer, "Player roles depend on color or stale identity.");
+        var presentation = new PlayerPresentation();
+        var initial = new PlayerState("1", "Alice", 100, 100, 0);
+        presentation.Update(new[] { initial }, 0.016, true);
+        Check(!presentation.Players.Single().IsWalking, "Idle spawn fabricated walking.");
+        presentation.Update(new[] { initial }, 0.016, true);
+        Check(presentation.Players.Single().WalkPhase == 0, "Idle display advanced animation.");
+        presentation.Update(new[] { initial with { X = 120, Sequence = 1 } }, 0.016, true);
+        DisplayPlayer moving = presentation.Players.Single();
+        Check(moving.IsWalking && moving.WalkPhase > 0 && moving.FacingX > 0.99f && Math.Abs(moving.FacingY) < 0.01,
+            "Facing and walking did not follow displayed displacement.");
+        presentation.Reset();
+        presentation.Update(new[] { initial with { Id = "new" } }, 0.016, true);
+        Check(!presentation.Players.Single().IsWalking && presentation.Players.Single().WalkPhase == 0 &&
+            PlayerPresentation.RoleFor("1", "new") == PlayerRole.Peer &&
+            PlayerPresentation.RoleFor("new", "new") == PlayerRole.Local, "Fresh identity retained animation or a local marker.");
     }
 
     private static async Task<TransportEvent> Event(TcpConnection connection, string kind)

@@ -22,18 +22,23 @@ Use the Godot .NET executable for `godot`. Set `DOTNET` and `GODOT` to executabl
 paths when using the shell scripts with portable runtimes. `DOTNET_ROOT` must
 point to that SDK/runtime directory when the engine cannot discover it.
 
-Open a second client as Bob to see both server-owned players. Use **Disconnect**
-to leave and **Connect / Rejoin** to create a new identity. Unexpected disconnects
+Open a second client as Bob to explore the illustrated village plaza together.
+Use **Leave** to disconnect and **Rejoin** to create a new identity. Unexpected disconnects
 retry up to five times with 1, 2, 4, 8 and 8 second delays; errors remain visible.
 The room has 16 guest slots. Guest names contain at most 64 UTF-8 bytes.
 Visible avatar labels use a 160-pixel limit with an ellipsis and stagger inside
 the arena when they collide. Full names remain unchanged in room state.
-The connection card, roster and live side panel expose how target proposals
-become server-owned state and snapshots. Expand **Show network details** for
+Pixel-Boy and AAA's CC0 Ninja Adventure art supplies the terrain, village props
+and animated characters. **YOU** nameplates, a diamond and a double ground ring
+identify the local ninja; **PLAYER** nameplates and hollow markers identify peers.
+Walking and facing follow actual displayed movement. See [art credits](docs/third-party-notices.md).
+The compact HUD shows connection, player count and actual application RTT.
+Expand **NETWORK** for
 actual endpoint, sequences, targets, confirmed coordinates, snapshot age,
 application ping RTT and frame/byte totals. Cyan marks you; amber marks peers.
-**Visual smoothing** eases only the drawn avatar; outlined rings and the roster
-retain raw server positions. See the editable [data-flow diagram](docs/data-sync.md).
+**Visual smoothing** eases only the drawn character. Raw-server markers default
+off and can be enabled in NETWORK; ground role rings follow displayed positions.
+Scenery is decorative and adds no collision rules. See the editable [data-flow diagram](docs/data-sync.md).
 
 See [run and verification](docs/run.md) and the [wire contract](docs/protocol.md).
 The sample provides temporary guest sessions. It does not provide account

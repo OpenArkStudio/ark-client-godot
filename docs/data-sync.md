@@ -16,26 +16,30 @@ flowchart LR
     Check -->|60004 rejected| Error[Visible client error]
     Kernel --> Snapshot[Sample builds full room snapshot]
     Snapshot -->|60003 / TCP to joined peers| Room[Each client: RoomSession]
-    Room --> Raw[Raw server rings + roster + confirmed values]
+    Room --> Raw[Optional raw markers + roster + confirmed values]
     Room --> Display[Display-only easing / raw toggle]
-    Display --> Avatar[Filled procedural avatar + name]
+    Display --> Avatar[Licensed animated sprite + role nameplate]
 ```
 
-The connection card selects the host, port and guest name. Cyan identifies the
-local guest; amber identifies peers. The roster shows the server ID, coordinates
-and sequence. The 960×540 playfield remains separate from the scrollable side
-panel. The logical canvas scales with the window while retaining the full
-playfield. Names remain complete in state even when visible labels use ellipsis.
+The compact connection card selects the host, port and guest name. YOU text,
+a diamond and double ground ring identify the local ninja; PLAYER text and hollow
+markers identify peers independently of color. The 960×540 village plaza is the
+main view. NETWORK opens the full roster, server coordinates and diagnostics.
+The logical canvas scales while retaining the full playfield. Names remain
+complete in state even when visible labels use ellipsis. Art credit and licensing
+are recorded in [third-party notices](third-party-notices.md); props add no collision rules.
 
 The **Visual smoothing** toggle controls display-only exponential easing toward
 the latest received coordinates. New IDs start at their received position;
 removed IDs disappear; reconnect clears all display state. The outlined ring
-always marks the raw server position. This is not client prediction, rollback,
+is a display identity marker; separate raw-server markers are off by default and
+can be enabled in NETWORK. Sprite facing and 6 fps walking advance only while
+the displayed position actually moves. This is not client prediction, rollback,
 extrapolation or interpolation through a time-buffered snapshot history.
 `RoomSession` and the server-confirmed sequence/coordinates stay unchanged by
 smoothing.
 
-Expand **Show network details** to compare actual observations:
+Expand **NETWORK** to compare actual observations:
 
 | Field | Meaning |
 | --- | --- |
