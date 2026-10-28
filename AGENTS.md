@@ -10,6 +10,14 @@
 - Preserve the approved sample wire contract and validate lengths, flags, finite
   positions and sequence bounds before changing room state. Do not infer login,
   authentication, persistence, or compatibility with legacy Unity protocols.
+- Room message bodies use Protobuf; Entity definitions and business profiles
+  remain JSON. The canonical schema is ark's `src/proto/proto/guest_room.proto`.
+  Keep this repository's schema and golden vectors byte-identical, regenerate
+  message source with the declared protoc version, and keep the runtime pinned.
+  Do not hand-edit generated C#. Run protocol parity, portable tests and actual
+  server/two-client checks for wire changes. Upgrade incompatible client/server
+  contracts together and document the migration; preserve owning, atomic
+  baselines/deltas, revision validation and bounded reconnect recovery.
 - Keep English and Chinese documentation aligned with changed behavior. Document
   exact prerequisites, commands, tested revisions and material limitations.
 - Follow the ark/arknet README layout: separate light/dark ARK and Godot pictures, language

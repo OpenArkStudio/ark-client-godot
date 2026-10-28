@@ -1,0 +1,9 @@
+{
+  "generator": "libprotoc 33.4",
+  "runtime": "Google.Protobuf 3.33.4",
+  "sha256": {
+    "protocol/guest_room.proto": "73031ca17d6ef1868be6bb5eda6e08c41cb3f6cbf94bf0855d85799f3c5c8c3e",
+    "src/Ark.Client.Core/Protocol/GuestRoom.cs": "1306e7319746900079842a393f52056847f5e2bf863cf0d7a645095a0feefe6a",
+    "tests/fixtures/wire-vectors.json": "149eabd6cf5d04849671567c967e03458f45f963594e9c0af3a168e7ae227f30"
+  }
+}

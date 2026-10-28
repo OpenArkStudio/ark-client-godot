@@ -2,7 +2,7 @@ namespace Ark.Client.Core;
 
 public sealed record AttributeChange(string PlayerId, long HpDelta, long MpDelta);
 
-/// <summary>Feedback originates only from differences between valid authoritative snapshots.</summary>
+/// <summary>Feedback originates only from differences between valid committed authoritative room states.</summary>
 public sealed class ConfirmedAttributes
 {
     private Dictionary<string, PlayerState> _previous = new(StringComparer.Ordinal);

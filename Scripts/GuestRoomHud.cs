@@ -109,7 +109,7 @@ public partial class GuestRoomHud : Control
         _rawMarkers = new CheckButton { Text = "Raw server markers", ButtonPressed = false };
         content.AddChild(_smoothing);
         content.AddChild(_rawMarkers);
-        content.AddChild(Text("Display easing only; no prediction.\nTarget + seq → validation → Kernel\nFull snapshots → both client views", 12, wrap: true));
+        content.AddChild(Text("Display easing only; no prediction.\nTarget + seq → validation → Kernel\nBaseline + deltas → both client views", 12, wrap: true));
         _details = Text("", 13, wrap: true);
         content.AddChild(_details);
         content.AddChild(new HSeparator());
@@ -141,7 +141,7 @@ public partial class GuestRoomHud : Control
         {
             button.Disabled = !room.HasSnapshot || !connected || room.PendingAction is not null;
         }
-        _details.Text = $"TCP peer: {transport.PeerEndpoint ?? "—"}\nARK2 / UTF-8 JSON\nLast room update age: {Milliseconds(session.SnapshotAgeMilliseconds)}\n\n" +
+        _details.Text = $"TCP peer: {transport.PeerEndpoint ?? "—"}\nARK2 / Protobuf v1\nEntity GUID: {room.EntityId}\nBaselines / deltas: {room.BaselineCount} / {room.DeltaCount}\nLast room update age: {Milliseconds(session.SnapshotAgeMilliseconds)}\n\n" +
             $"Move proposal:\n{outgoing}\nServer-confirmed:\n{authoritative}\n\n" +
             $"HP / MP: {(confirmed is null ? "—" : $"{confirmed.Hp}/{confirmed.HpMax} · {confirmed.Mp}/{confirmed.MpMax}")}\n" +
             $"Confirmed action_seq: {confirmed?.ActionSequence.ToString() ?? "—"}\n" +

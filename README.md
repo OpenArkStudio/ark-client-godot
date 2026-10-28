@@ -31,8 +31,9 @@
 
 - **Shared room:** join a pixel-art village, see other guests and move with WASD or arrow keys.
 - **Entity attributes:** HP/MP actions and numeric bars show server-owned state and confirmed changes.
+- **Protobuf synchronization:** install a full baseline on join, then apply scalar deltas and removal markers; inspect baseline/delta counts in the diagnostics panel.
 - **Player identity:** YOU/PLAYER nameplates and distinct ground markers identify yourself and other players.
-- **Network visibility:** inspect RTT, message counts and proposed versus confirmed positions; compare visual smoothing with raw snapshots and try disconnecting/rejoining.
+- **Network visibility:** inspect RTT, message counts and proposed versus confirmed positions; compare visual smoothing with authoritative positions and try disconnecting/rejoining.
 
 ![Two guests in the village with synchronized positions and HP/MP](docs/images/room.png)
 
