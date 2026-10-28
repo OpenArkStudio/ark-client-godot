@@ -30,8 +30,8 @@ public sealed class PlayerPresentation
             DisplayPlayer next;
             if (_players.TryGetValue(state.Id, out DisplayPlayer? previous))
             {
-                float x = previous.X + (state.X - previous.X) * weight;
-                float y = previous.Y + (state.Y - previous.Y) * weight;
+                float x = previous.X + ((float)state.X - previous.X) * weight;
+                float y = previous.Y + ((float)state.Y - previous.Y) * weight;
                 float dx = x - previous.X, dy = y - previous.Y;
                 float distance = MathF.Sqrt(dx * dx + dy * dy);
                 bool walking = distance > 0.03f;
@@ -43,7 +43,7 @@ public sealed class PlayerPresentation
             }
             else
             {
-                next = new DisplayPlayer(state, state.X, state.Y);
+                next = new DisplayPlayer(state, (float)state.X, (float)state.Y);
             }
             _players[state.Id] = next;
             result.Add(next);

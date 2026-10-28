@@ -110,7 +110,7 @@ public partial class GuestRoomWorld : Control
         Color accent = local ? new Color("8ffff0") : new Color("ffe1a3");
         if (_rawMarkers)
         {
-            Vector2 raw = new(display.ServerState.X, display.ServerState.Y);
+            Vector2 raw = new((float)display.ServerState.X, (float)display.ServerState.Y);
             DrawArc(raw, 23, 0, Mathf.Tau, 32, new Color("ffffff"), 1.5f, true);
             DrawLine(raw, position, new Color("ffffff"));
         }

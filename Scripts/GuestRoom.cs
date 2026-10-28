@@ -369,7 +369,7 @@ public partial class GuestRoom : Node2D
             return;
         }
 
-        Vector2 target = new Vector2(self.X, self.Y) + direction.Normalized() * Speed * 0.1f;
+        Vector2 target = new Vector2((float)self.X, (float)self.Y) + direction.Normalized() * Speed * 0.1f;
         if (TryPrepareSend(() => _room.MoveFrame(Math.Clamp(target.X, 0, RoomSession.Width), Math.Clamp(target.Y, 0, RoomSession.Height)), out byte[]? frame))
         {
             _nextMove = _clock + 0.1;

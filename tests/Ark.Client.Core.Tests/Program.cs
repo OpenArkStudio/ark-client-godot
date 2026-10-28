@@ -3,84 +3,386 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using Ark.Client.Core;
+using Ark.Client.Protocol;
 using Ark.Client.Testing;
+using Google.Protobuf;
 
 internal static class Program
 {
     private static int _passed;
-    public static async Task<int> Main()
+    public static async Task<int> Main(string[] args)
     {
         try
         {
-            Test("shared golden vectors", GoldenVectors);
+            if (args.FirstOrDefault() == "--live")
+            {
+                return await LiveIntegration.Run(args);
+            }
+            if (args.FirstOrDefault() == "--protocol-parity")
+            {
+                ProtocolParity.Verify(args[1], args.ElementAtOrDefault(2));
+                return 0;
+            }
+            Test("schema generated source and shared fixture SHA parity", () => ProtocolParity.Verify(ProtocolParity.FindRoot(), null));
+            Test("snake_case schema names preserve enum numbers and binary bytes", ProtocolNaming.Verify);
+            Test("shared C++/C# protobuf golden frames", GoldenVectors);
             Test("every partial split and multiple frames", FragmentedFrames);
             Test("maximum body and malformed headers", HeaderBounds);
             Test("reconnect clears partial frame", ResetCodec);
-            Test("authoritative state and fresh identity", SessionState);
-            Test("invalid room messages do not replace roster", InvalidState);
+            Test("all scalar alternatives retain widths and zero presence", ScalarBoundaries);
+            Test("baseline delta add remove duplicate and fresh identity", ReplicaLifecycle);
+            Test("whole room rejects atomically including own pending action", AtomicEnvelope);
+            Test("schema types ranges gaps generations and resurrection fail", InvalidReplica);
+            Test("official protobuf parser rejects truncation duplicate fields and wrong wires", InvalidEncoding);
+            Test("independent actions and exact pending correlation", ActionCorrelation);
+            Test("confirmed HP/MP feedback and unsigned limits", AttributeValidation);
             Test("bounded player label truncation and collision layout", LabelLayout);
             Test("monotonic snapshot age and correlated application RTT reset", DiagnosticsCorrelation);
             Test("display smoothing preserves server state and fresh identities", PresentationState);
             Test("local role markers and walking follow actual displayed movement", PresentationIdentityAndMotion);
-            Test("independent action sequence and exact pending correlation", ActionCorrelation);
-            Test("required HP/MP ranges, confirmed deltas and reset", AttributeValidation);
             Test("smoke evidence requires every own and peer action snapshot", AttributeSmokeEvidence);
             Test("busy send defers proposal and heartbeat state before preparation", DeferredSendPreparation);
             await NetworkSessions();
             Console.WriteLine($"PASS {_passed} checks");
             return 0;
         }
-        catch (Exception error)
-        {
-            Console.Error.WriteLine(error);
-            return 1;
-        }
+        catch (Exception error) { Console.Error.WriteLine(error); return 1; }
     }
-
-    private static void Test(string name, Action action)
+    private static void Test(string name, System.Action action)
     {
         action();
         _passed++;
         Console.WriteLine("PASS " + name);
     }
-    private static void Check(bool value, string reason)
+    internal static void Check(bool value, string reason)
     {
         if (!value)
         {
             throw new Exception(reason);
         }
     }
-    private static void Reject(Action action)
+    private static void Reject(System.Action action)
     {
         try
         {
             action();
         }
-        catch (InvalidDataException)
-        {
-            return;
-        }
+        catch (InvalidDataException) { return; }
         throw new Exception("Expected malformed input rejection.");
     }
-    private static Frame Decode(byte[] bytes) => new FrameCodec().Append(bytes).Single();
-    private static Frame Json(ushort id, string body) => new(id, Encoding.UTF8.GetBytes(body));
-    private static Frame Accepted(string id) => Json(RoomSession.Accepted,
-        $$"""{"player_id":"{{id}}","name":"Alice","room":"lobby","width":960,"height":540}""");
-    private static Frame Snapshot(string id, uint seq = 1, uint hp = 100, uint mp = 100, uint hpMax = 100, uint mpMax = 100, uint actionSeq = 0) => Json(RoomSession.Snapshot,
-        $$"""{"room":"lobby","players":[{"id":"{{id}}","name":"Alice","x":120,"y":100,"seq":{{seq}},"hp":{{hp}},"mp":{{mp}},"hp_max":{{hpMax}},"mp_max":{{mpMax}},"action_seq":{{actionSeq}}}]}""");
-
+    internal static Frame Decode(byte[] bytes) => new FrameCodec().Append(bytes).Single();
+    internal static Frame Message(ushort id, IMessage body) => new(id, body.ToByteArray());
+    internal static scalar_field UInt(uint index, uint value) => new() { Index = index, Uint32Value = value };
+    internal static scalar_field Double(uint index, double value) => new() { Index = index, DoubleValue = value };
+    internal static player_baseline Player(string id = "1", ulong entity = 42, string name = "Alice", ulong revision = 1)
+    {
+        var state = new scalar_baseline { SchemaId = RoomSession.SchemaId, ClassName = RoomSession.ClassName, EntityId = entity, Generation = 1, Revision = revision };
+        state.Fields.Add(new scalar_field { Index = 100, StringValue = ByteString.CopyFromUtf8(name) });
+        state.Fields.Add(Double(101, 120));
+        state.Fields.Add(Double(102, 100));
+        state.Fields.Add(UInt(103, 0));
+        state.Fields.Add(UInt(104, 100));
+        state.Fields.Add(UInt(105, 100));
+        state.Fields.Add(UInt(106, 100));
+        state.Fields.Add(UInt(107, 100));
+        state.Fields.Add(UInt(108, 0));
+        return new player_baseline { PlayerId = id, State = state };
+    }
+    private static Frame Accepted(string id = "1", ulong entity = 42) => Message(RoomSession.Accepted,
+        new join_accepted { PlayerId = id, EntityId = entity, Name = "Alice", Room = "lobby", Width = 960, Height = 540, ProtocolVersion = 1 });
+    private static Frame Snapshot(string id, uint seq = 0)
+    {
+        player_baseline player = Player(id);
+        player.State.Fields[3].Uint32Value = seq;
+        return Message(RoomSession.Snapshot, new room_baseline { Room = "lobby", Players = { player } });
+    }
+    internal static scalar_delta Change(ulong entity = 42, ulong required = 1, params scalar_field[] fields)
+    {
+        var change = new scalar_delta { SchemaId = RoomSession.SchemaId, ClassName = RoomSession.ClassName, EntityId = entity, Generation = 1, RequiredRevision = required, Revision = required + 1 };
+        change.Fields.Add(fields);
+        return change;
+    }
+    internal static Frame Delta(params scalar_delta[] changes) => Message(RoomSession.Delta, new room_delta { Room = "lobby", Changed = { changes } });
+    private static RoomSession Joined(params player_baseline[] peers)
+    {
+        var room = new RoomSession();
+        room.Apply(Accepted());
+        var baseline = new room_baseline { Room = "lobby", Players = { Player() } };
+        baseline.Players.Add(peers);
+        room.Apply(Message(RoomSession.Snapshot, baseline));
+        return room;
+    }
     private static void GoldenVectors()
     {
         using JsonDocument fixture = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "wire-vectors.json")));
+        Check(fixture.RootElement.GetProperty("format").GetString() == "ark.guest-room.protobuf-v1", "Unexpected shared format.");
         foreach (JsonElement vector in fixture.RootElement.GetProperty("vectors").EnumerateArray())
         {
             ushort id = vector.GetProperty("message_id").GetUInt16();
-            byte[] body = Encoding.UTF8.GetBytes(vector.GetProperty("body").GetString()!);
+            byte[] body = Convert.FromHexString(vector.GetProperty("body_hex").GetString()!);
             byte[] expected = Convert.FromHexString(vector.GetProperty("frame_hex").GetString()!);
-            Check(FrameCodec.Encode(id, body).SequenceEqual(expected), "Golden encoding mismatch.");
+            Check(FrameCodec.Encode(id, body).SequenceEqual(expected), "Golden frame encoding mismatch.");
             Frame decoded = Decode(expected);
-            Check(decoded.MessageId == id && decoded.Body.SequenceEqual(body), "Golden decoding mismatch.");
+            Check(decoded.MessageId == id && decoded.Body.SequenceEqual(body), "Golden frame decoding mismatch.");
+            IMessage parsed = id switch
+            {
+                RoomSession.Join => ProtobufMessages.Parse(body, join_request.Parser, join_request.Descriptor),
+                RoomSession.Accepted => ProtobufMessages.Parse(body, join_accepted.Parser, join_accepted.Descriptor),
+                RoomSession.Move => ProtobufMessages.Parse(body, move_request.Parser, move_request.Descriptor),
+                RoomSession.Snapshot => ProtobufMessages.Parse(body, room_baseline.Parser, room_baseline.Descriptor),
+                RoomSession.Error => ProtobufMessages.Parse(body, error_response.Parser, error_response.Descriptor),
+                RoomSession.Ping or RoomSession.Pong => ProtobufMessages.Parse(body, heartbeat.Parser, heartbeat.Descriptor),
+                RoomSession.Action => ProtobufMessages.Parse(body, action_request.Parser, action_request.Descriptor),
+                RoomSession.Delta => ProtobufMessages.Parse(body, room_delta.Parser, room_delta.Descriptor),
+                _ => throw new Exception("Unknown golden message.")
+            };
+            Check(parsed.ToByteArray().SequenceEqual(body), "Official generated roundtrip mismatch: " + vector.GetProperty("name"));
         }
+        foreach (JsonElement vector in fixture.RootElement.GetProperty("scalar_vectors").EnumerateArray())
+        {
+            byte[] body = Convert.FromHexString(vector.GetProperty("body_hex").GetString()!);
+            scalar_field field = ProtobufMessages.Parse(body, scalar_field.Parser, scalar_field.Descriptor);
+            Check(field.Index == 100 && field.ValueCase != scalar_field.ValueOneofCase.None && field.ToByteArray().SequenceEqual(body),
+                "Shared scalar boundary mismatch: " + vector.GetProperty("name"));
+        }
+        Check(Decode(RoomSession.JoinFrame("Alice")).Body.SequenceEqual(new join_request { Name = "Alice", Room = "lobby", ProtocolVersion = 1 }.ToByteArray()), "Join version missing.");
+    }
+    private static void HeaderBounds()
+    {
+        byte[] maximum = FrameCodec.Encode(RoomSession.Snapshot, new byte[8192]);
+        foreach (int split in new[] { 1, 11, 12, 4108, 8203 })
+        {
+            var codec = new FrameCodec();
+            Check(codec.Append(maximum.AsSpan(0, split)).Count == 0 && codec.Append(maximum.AsSpan(split)).Single().Body.Length == 8192, "Maximum-body partial frame failed.");
+        }
+        var roster = new room_baseline { Room = "lobby" };
+        for (ulong id = 1; id <= 16; id++)
+        {
+            player_baseline player = Player(id.ToString(), id, new string('"', 64));
+            foreach (scalar_field field in player.State.Fields.Where(field => field.Index >= 103))
+            {
+                field.Uint32Value = uint.MaxValue;
+            }
+            roster.Players.Add(player);
+        }
+        byte[] body = roster.ToByteArray();
+        Check(body.Length <= 8192 && Decode(FrameCodec.Encode(RoomSession.Snapshot, body)).Body.SequenceEqual(body), "Maximum roster exceeded frame bound.");
+        Reject(() => FrameCodec.Encode(60000, new byte[8193]));
+        foreach (int offset in new[] { 0, 3, 7 })
+        {
+            byte[] bad = FrameCodec.Encode(60000, Array.Empty<byte>());
+            bad[offset] ^= 1;
+            Reject(() => new FrameCodec().Append(bad));
+        }
+        byte[] large = FrameCodec.Encode(60000, Array.Empty<byte>());
+        large[10] = 0x20;
+        large[11] = 1;
+        Reject(() => new FrameCodec().Append(large));
+    }
+    private static void ScalarBoundaries()
+    {
+        var fields = new[] {
+            new scalar_field { BoolValue = false }, new scalar_field { BoolValue = true },
+            new scalar_field { Int32Value = int.MinValue }, new scalar_field { Int32Value = int.MaxValue },
+            new scalar_field { Uint32Value = uint.MaxValue }, new scalar_field { Int64Value = long.MinValue },
+            new scalar_field { Int64Value = long.MaxValue }, new scalar_field { Uint64Value = ulong.MaxValue },
+            new scalar_field { FloatValue = float.MaxValue }, new scalar_field { DoubleValue = double.MaxValue },
+            new scalar_field { StringValue = ByteString.CopyFrom(new byte[] { 0, 255, 128 }) }, new scalar_field { GuidValue = long.MaxValue }, new scalar_field { GuidValue = long.MinValue }
+        };
+        foreach (scalar_field field in fields)
+        {
+            scalar_field parsed = ProtobufMessages.Parse(field.ToByteArray(), scalar_field.Parser, scalar_field.Descriptor);
+            Check(parsed.Equals(field) && parsed.ValueCase != scalar_field.ValueOneofCase.None, "Lost exact scalar width/presence.");
+        }
+        RoomSession room = Joined();
+        room.Apply(Delta(Change(42, 1, Double(101, Math.BitIncrement(120.0)), UInt(103, uint.MaxValue), UInt(104, uint.MaxValue), UInt(105, uint.MaxValue), UInt(106, uint.MaxValue), UInt(107, uint.MaxValue), UInt(108, uint.MaxValue))));
+        Check(room.Players.Single().X == Math.BitIncrement(120.0) && room.Players.Single().Hp == uint.MaxValue, "Public fields lost double/uint32 precision.");
+        try
+        {
+            room.MoveFrame(1, 1);
+            throw new Exception("Movement sequence wrapped.");
+        }
+        catch (InvalidOperationException) { }
+        try
+        {
+            room.ActionFrame("rest");
+            throw new Exception("Action sequence wrapped.");
+        }
+        catch (InvalidOperationException) { }
+    }
+    private static void ReplicaLifecycle()
+    {
+        var room = Joined();
+        byte[] move = room.MoveFrame(150, 160);
+        Check(move_request.Parser.ParseFrom(Decode(move).Body).Sequence == 1 && room.Players.Single().X == 120, "Proposal changed authority.");
+        var addition = new room_delta { Room = "lobby", Added = { Player("2", 43, "Bob") } };
+        room.Apply(Message(RoomSession.Delta, addition));
+        scalar_delta change = Change(42, 1, Double(101, 150), Double(102, 160), UInt(103, 1));
+        room.Apply(Delta(change));
+        room.Apply(Delta(change));
+        Check(room.Players.Count == 2 && room.Players[0].X == 150 && room.BaselineCount == 1 && room.DeltaCount == 3, "Incremental/duplicate update failed.");
+        scalar_delta removed = Change(43);
+        removed.Removed = true;
+        room.Apply(Delta(removed));
+        room.Apply(Delta(removed));
+        Check(room.Players.Count == 1, "Tombstone did not remove peer idempotently.");
+        Reject(() => room.Apply(Message(RoomSession.Delta, addition)));
+        room.Reset();
+        Check(!room.HasSnapshot && room.EntityId == 0 && room.Players.Count == 0 && room.LastProposedMove is null, "Reset retained replica.");
+        room.Apply(Accepted("3", 99));
+        room.Apply(Message(RoomSession.Snapshot, new room_baseline { Room = "lobby", Players = { Player("3", 99) } }));
+        Check(move_request.Parser.ParseFrom(Decode(room.MoveFrame(1, 1)).Body).Sequence == 1 && room.EntityId == 99, "Fresh baseline retained old identity/sequence.");
+    }
+    private static void AtomicEnvelope()
+    {
+        var room = Joined(Player("2", 43, "Bob"));
+        room.ActionFrame("damage");
+        IReadOnlyList<PlayerState> previous = room.Players;
+        scalar_delta own = Change(42, 1, UInt(104, 85), UInt(108, 1));
+        scalar_delta badPeer = Change(43, 1, UInt(104, 101));
+        Reject(() => room.Apply(Delta(own, badPeer)));
+        Check(ReferenceEquals(room.Players, previous) && room.PendingAction?.Sequence == 1 && room.DeltaCount == 0, "Invalid peer partially committed own action.");
+        scalar_delta zeroRequired = Change(43, 0, UInt(104, 90));
+        Reject(() => room.Apply(Delta(own, zeroRequired)));
+        Check(ReferenceEquals(room.Players, previous) && room.PendingAction?.Sequence == 1 && room.DeltaCount == 0,
+            "Zero required revision partially committed an own action.");
+        var zeroBaseline = new room_delta { Room = "lobby", Added = { Player("3", 44, "Third", 0) }, Changed = { own } };
+        Reject(() => room.Apply(Message(RoomSession.Delta, zeroBaseline)));
+        Check(ReferenceEquals(room.Players, previous) && room.PendingAction?.Sequence == 1 && room.DeltaCount == 0,
+            "Zero baseline revision partially committed room state.");
+        room.Apply(Delta(own));
+        Check(room.PendingAction is null && room.Players[0].Hp == 85, "Atomic failure consumed the revision.");
+        var wrongOwn = new RoomSession();
+        wrongOwn.Apply(Accepted());
+        Reject(() => wrongOwn.Apply(Message(RoomSession.Snapshot, new room_baseline { Room = "lobby", Players = { Player("1", 99) } })));
+        Check(!wrongOwn.HasSnapshot && wrongOwn.Players.Count == 0, "Wrong entity bound own identity.");
+        wrongOwn.Apply(Snapshot("1"));
+        Reject(() => wrongOwn.Apply(Delta(Change(42, 1, new scalar_field { Index = 100, StringValue = ByteString.CopyFromUtf8("Other") }))));
+    }
+    private static void InvalidReplica()
+    {
+        foreach (System.Action<scalar_baseline> corrupt in new System.Action<scalar_baseline>[] {
+            state => state.SchemaId = "unknown", state => state.ClassName = "guestplayer", state => state.Generation = 0,
+            state => state.EntityId = 0, state => state.EntityId = ulong.MaxValue, state => state.Revision = 0,
+            state => state.Fields.RemoveAt(8), state => state.Fields.Add(state.Fields[0].Clone()),
+            state => state.Fields[0].StringValue = ByteString.CopyFrom(new byte[] { 255 }),
+            state => state.Fields[0].StringValue = ByteString.CopyFromUtf8(new string('a', 65)),
+            state => state.Fields[0].StringValue = ByteString.CopyFromUtf8("A\n"),
+            state => state.Fields[1].DoubleValue = double.NaN, state => state.Fields[1].DoubleValue = double.PositiveInfinity,
+            state => state.Fields[1].DoubleValue = -1, state => state.Fields[2].DoubleValue = 541,
+            state => state.Fields[4].Uint32Value = 101, state => state.Fields[6].Uint32Value = 0,
+            state => state.Fields[5].Uint32Value = 101, state => state.Fields[7].Uint32Value = 0,
+            state => state.Fields[0].Index = 99, state => state.Fields[1].FloatValue = 120,
+            state => state.Fields[4].Int32Value = 100, state => state.Fields[0].ClearValue()
+        })
+        {
+            var room = new RoomSession();
+            room.Apply(Accepted());
+            player_baseline player = Player();
+            corrupt(player.State);
+            Reject(() => room.Apply(Message(RoomSession.Snapshot, new room_baseline { Room = "lobby", Players = { player } })));
+            Check(!room.HasSnapshot, "Malformed baseline committed.");
+        }
+        foreach (System.Action<scalar_delta> corrupt in new System.Action<scalar_delta>[] {
+            change => change.Generation = 0, change => change.Generation = 2, change => change.RequiredRevision = 0,
+            change => { change.RequiredRevision = 0; change.Revision = 1; },
+            change => change.RequiredRevision = 2, change => change.Revision = 3, change => change.EntityId = 99,
+            change => change.SchemaId = "unknown", change => change.ClassName = "other", change => change.Fields.Clear(),
+            change => change.Removed = true, change => change.Fields.Add(change.Fields[0].Clone())
+        })
+        {
+            var room = Joined();
+            scalar_delta change = Change(42, 1, UInt(104, 85));
+            corrupt(change);
+            Reject(() => room.Apply(Delta(change)));
+            Check(room.Players.Single().Hp == 100, "Invalid delta committed.");
+        }
+        var joined = Joined();
+        joined.Apply(Delta(Change(42, 1, UInt(103, 5))));
+        Reject(() => joined.Apply(Delta(Change(42, 2, UInt(103, 4)))));
+        scalar_delta ownRemoval = Change(42, 2);
+        ownRemoval.Removed = true;
+        Reject(() => joined.Apply(Delta(ownRemoval)));
+        Reject(() => joined.Apply(Delta(Change(42, 2, UInt(104, 90)), Change(42, 2, UInt(105, 90)))));
+        Reject(() => joined.Apply(Snapshot("1")));
+        var duplicateId = new RoomSession();
+        duplicateId.Apply(Accepted());
+        Reject(() => duplicateId.Apply(Message(RoomSession.Snapshot, new room_baseline { Room = "lobby", Players = { Player(), Player("1", 43) } })));
+        Reject(() => joined.Apply(new Frame(60007, Array.Empty<byte>())));
+    }
+    private static void InvalidEncoding()
+    {
+        byte[] accepted = Accepted().Body;
+        for (int count = 1; count < accepted.Length; count++)
+        {
+            var room = new RoomSession();
+            byte[] truncated = accepted[..count];
+            Reject(() => room.Apply(new Frame(RoomSession.Accepted, truncated)));
+        }
+        var fresh = new RoomSession();
+        Reject(() => fresh.Apply(new Frame(RoomSession.Accepted, accepted.Concat(new byte[] { 0x38, 1 }).ToArray())));
+        Reject(() => fresh.Apply(new Frame(RoomSession.Accepted, new byte[] { 0x0a, 0x80 })));
+        Reject(() => fresh.Apply(new Frame(RoomSession.Pong, new byte[] { 0x0a, 0 })));
+        Reject(() => ProtobufMessages.Parse(new byte[] { 0x20, 0, 0x41, 0, 0, 0, 0, 0, 0, 0, 0 }, scalar_field.Parser, scalar_field.Descriptor));
+        Reject(() => fresh.Apply(new Frame(RoomSession.Accepted, new byte[8193])));
+        Reject(() => ProtobufMessages.Parse(new byte[] { 0x08, 1, 0x10, 99 }, action_request.Parser, action_request.Descriptor));
+        Reject(() => ProtobufMessages.Parse(new byte[] { 0x20, 0x80, 0x80, 0x80, 0x80, 0x10 }, scalar_field.Parser, scalar_field.Descriptor));
+        Reject(() => fresh.Apply(new Frame(RoomSession.Accepted, new byte[] { 0x0a, 1, 0xff })));
+        Reject(() => ProtobufMessages.Parse(new byte[] { 0x10, 2 }, scalar_field.Parser, scalar_field.Descriptor));
+        Reject(() => ProtobufMessages.Parse(new byte[] { 0x30 }.Concat(Enumerable.Repeat((byte)0xff, 9)).Append((byte)3).ToArray(), scalar_field.Parser, scalar_field.Descriptor));
+        // Unknown protobuf fields remain forward compatible.
+        fresh.Apply(new Frame(RoomSession.Accepted, accepted.Concat(new byte[] { 0xa0, 0x06, 1 }).ToArray()));
+        fresh.Apply(Snapshot("1"));
+        Check(fresh.HasSnapshot, "Unknown field blocked forward-compatible encoding.");
+        var badVersion = join_accepted.Parser.ParseFrom(accepted);
+        badVersion.ProtocolVersion = 2;
+        Reject(() => new RoomSession().Apply(Message(RoomSession.Accepted, badVersion)));
+    }
+    private static void ActionCorrelation()
+    {
+        var room = Joined();
+        action_request request = action_request.Parser.ParseFrom(Decode(room.ActionFrame("damage")).Body);
+        Check(request.Sequence == 1 && request.Kind == action_kind.ActionDamage && room.Players.Single().Hp == 100, "Incorrect action proposal.");
+        try
+        {
+            room.ActionFrame("skill");
+            throw new Exception("Pending action replaced.");
+        }
+        catch (InvalidOperationException) { }
+        room.Apply(Delta(Change(42, 1, UInt(103, 1))));
+        Check(room.PendingAction?.Sequence == 1, "Move confirmed action.");
+        room.Apply(Message(RoomSession.Error, new error_response { Code = "invalid_action", Message = "unrelated", ActionSequence = 99 }));
+        Check(room.PendingAction?.Sequence == 1, "Unmatched error cleared pending.");
+        room.Apply(Delta(Change(42, 2, UInt(104, 85), UInt(108, 1))));
+        Check(room.PendingAction is null && room.Players.Single().Hp == 85, "Action confirmation failed.");
+        room.ActionFrame("skill");
+        room.Apply(Message(RoomSession.Error, new error_response { Code = "insufficient_resource", ActionSequence = 2 }));
+        Check(room.PendingAction is null && room.HasSnapshot && room.Players.Single().Mp == 100, "Business rejection corrupted room.");
+        room.ActionFrame("rest");
+        Check(room.PendingAction?.Sequence == 3, "Rejection reused sequence.");
+        room.Reset();
+        Check(room.PendingAction is null && room.LastProposedAction is null && room.ActionFeedback is null, "Reset retried action.");
+    }
+    private static void AttributeValidation()
+    {
+        var room = Joined();
+        var feedback = new ConfirmedAttributes();
+        Check(feedback.Observe(room.Players).Count == 0, "Initial feedback fabricated.");
+        room.ActionFrame("damage");
+        Check(feedback.Observe(room.Players).Count == 0, "Proposal generated damage feedback.");
+        room.Apply(Delta(Change(42, 1, UInt(104, 85), UInt(105, 80), UInt(108, 1))));
+        Check(feedback.Observe(room.Players).Single() == new AttributeChange("1", -15, -20), "Confirmed deltas missing.");
+        room.Apply(Delta(Change(42, 2, UInt(104, 100), UInt(105, 100), UInt(108, 2))));
+        Check(feedback.Observe(room.Players).Single() == new AttributeChange("1", 15, 20), "Restore feedback incorrect.");
+        room.Apply(Delta(Change(42, 3, UInt(108, 3))));
+        Check(feedback.Observe(room.Players).Count == 0, "No-op fabricated amount.");
+        room.Apply(Delta(Change(42, 4, UInt(104, uint.MaxValue), UInt(106, uint.MaxValue))));
+        feedback.Observe(room.Players);
+        room.Apply(Delta(Change(42, 5, UInt(104, 0))));
+        Check(feedback.Observe(room.Players).Single().HpDelta == -(long)uint.MaxValue, "uint32 feedback overflowed.");
+        room.MoveFrame(10, 10);
+        feedback.Reset();
+        Check(feedback.Observe(room.Players).Count == 0, "Reset retained feedback.");
     }
     private static void FragmentedFrames()
     {
@@ -99,53 +401,6 @@ internal static class Program
         Check(new FrameCodec().Append(Enumerable.Range(0, 100).SelectMany(_ => second).ToArray()).Count == 100,
             "Coalesced frames exceeding internal buffer failed.");
     }
-    private static void HeaderBounds()
-    {
-        Check(Decode(FrameCodec.Encode(60000, new byte[8192])).Body.Length == 8192, "8192-byte boundary failed.");
-        byte[] maximum = FrameCodec.Encode(60003, new byte[8192]);
-        foreach (int split in new[] { 1, 11, 12, 4108, 8203 })
-        {
-            var codec = new FrameCodec();
-            Check(codec.Append(maximum.AsSpan(0, split)).Count == 0 && codec.Append(maximum.AsSpan(split)).Single().Body.Length == 8192,
-                "Bounded maximum-body partial frame failed.");
-        }
-        byte[] roster = JsonSerializer.SerializeToUtf8Bytes(new
-        {
-            room = "lobby",
-            players = Enumerable.Range(1, 16).Select(index => new
-            {
-                id = index.ToString(),
-                name = new string('"', 64),
-                x = 960,
-                y = 540,
-                seq = uint.MaxValue,
-                hp = uint.MaxValue,
-                mp = uint.MaxValue,
-                hp_max = uint.MaxValue,
-                mp_max = uint.MaxValue,
-                action_seq = uint.MaxValue
-            })
-        }, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
-        Check(roster.Length > 4096 && roster.Length <= 8192 && Decode(FrameCodec.Encode(RoomSession.Snapshot, roster)).Body.SequenceEqual(roster),
-            "Expanded 16-player stat snapshot did not fit ARK2.");
-        Reject(() => FrameCodec.Encode(60000, new byte[8193]));
-        byte[] magic = FrameCodec.Encode(60000, Array.Empty<byte>());
-        magic[0] = 0;
-        Reject(() => new FrameCodec().Append(magic));
-        byte[] flags = FrameCodec.Encode(60000, Array.Empty<byte>());
-        flags[7] = 1;
-        Reject(() => new FrameCodec().Append(flags));
-        byte[] large = FrameCodec.Encode(60000, Array.Empty<byte>());
-        large[10] = 0x20;
-        large[11] = 1;
-        Reject(() => new FrameCodec().Append(large));
-        byte[] oldVersion = FrameCodec.Encode(60000, Array.Empty<byte>());
-        oldVersion[3] = (byte)'1';
-        Reject(() => new FrameCodec().Append(oldVersion));
-        large[8] = 0xff;
-        large[9] = 0xff;
-        Reject(() => new FrameCodec().Append(large));
-    }
     private static void ResetCodec()
     {
         var codec = new FrameCodec();
@@ -154,43 +409,6 @@ internal static class Program
         codec.Reset();
         Check(codec.Append(RoomSession.PingFrame(9)).Single().MessageId == RoomSession.Ping, "Stale reconnect buffer retained.");
     }
-    private static void SessionState()
-    {
-        var room = new RoomSession();
-        room.Apply(Accepted("old"));
-        room.Apply(Snapshot("old"));
-        Check(room.HasSnapshot && room.Players.Single().Sequence == 1, "Authoritative snapshot missing.");
-        using (JsonDocument move = JsonDocument.Parse(Decode(room.MoveFrame(150, 160)).Body))
-        {
-            Check(move.RootElement.GetProperty("seq").GetUInt32() == 1, "First sequence must be one.");
-        }
-        Check(room.LastProposedMove == new MoveProposal(1, 150, 160) && room.Players.Single().X == 120,
-            "Move proposal changed server-confirmed state.");
-
-        room.Reset();
-        Check(room.PlayerId is null && room.Players.Count == 0 && !room.HasSnapshot, "Reconnect retained old room.");
-        Check(room.LastProposedMove is null, "Reconnect retained an old proposal.");
-        room.Apply(Accepted("new"));
-        room.Apply(Snapshot("new", 0));
-        using JsonDocument fresh = JsonDocument.Parse(Decode(room.MoveFrame(130, 110)).Body);
-        Check(room.PlayerId == "new" && fresh.RootElement.GetProperty("seq").GetUInt32() == 1,
-            "Fresh identity did not reset sequence.");
-    }
-    private static void InvalidState()
-    {
-        var room = new RoomSession();
-        room.Apply(Accepted("1"));
-        room.Apply(Snapshot("1", 4));
-        Reject(() => room.Apply(Snapshot("1", 3)));
-        Reject(() => room.Apply(Json(RoomSession.Snapshot,
-            "{\"room\":\"lobby\",\"players\":[{\"id\":\"1\",\"name\":\"Alice\",\"x\":961,\"y\":1,\"seq\":5}]}")));
-        Reject(() => room.Apply(new Frame(RoomSession.Snapshot, new byte[] { 0xff })));
-        Reject(() => room.Apply(Json(RoomSession.Snapshot, "[]")));
-        Reject(() => room.Apply(Json(RoomSession.Snapshot, "{\"room\":\"lobby\",\"players\":[]}")));
-        Reject(() => room.MoveFrame(float.NaN, 10));
-        Check(room.Players.Single().Sequence == 4, "Rejected snapshot mutated roster.");
-    }
-
     private static void LabelLayout()
     {
         static float Measure(string text) => System.Globalization.StringInfo.ParseCombiningCharacters(text).Length * 8;
@@ -226,108 +444,6 @@ internal static class Program
                 bounds.Y + bounds.Height <= RoomSession.Height &&
                 panels.Take(index).All(previous => !bounds.Intersects(previous.Bounds)), "HP/MP panels overlap or escape the arena.");
         }
-    }
-
-    private static void ActionCorrelation()
-    {
-        var room = new RoomSession();
-        room.Apply(Accepted("1"));
-        room.Apply(Snapshot("1", 0));
-        using (JsonDocument request = JsonDocument.Parse(Decode(room.ActionFrame("damage")).Body))
-        {
-            Check(request.RootElement.EnumerateObject().Count() == 2 && request.RootElement.GetProperty("seq").GetUInt32() == 1 &&
-                request.RootElement.GetProperty("kind").GetString() == "damage", "Client sent amounts/targets or an incorrect action sequence.");
-        }
-        Check(room.Players.Single().Hp == 100 && room.PendingAction?.Sequence == 1, "Proposal predicted an HP change.");
-        try
-        {
-            room.ActionFrame("skill");
-            throw new Exception("A second action replaced the pending request.");
-        }
-        catch (InvalidOperationException) { }
-        room.Apply(Snapshot("1", 1));
-        Check(room.PendingAction?.Sequence == 1, "Movement snapshot prematurely confirmed an action.");
-        Check(room.Apply(Json(RoomSession.Error, "{\"code\":\"invalid_action\",\"message\":\"unrelated\",\"action_seq\":99}")) == "action_error" &&
-            room.PendingAction?.Sequence == 1 && room.HasSnapshot, "Unmatched rejection cleared pending state or disconnected.");
-        room.Apply(Json(RoomSession.Error, "{\"code\":\"invalid_action\",\"message\":\"invalid seq\",\"action_seq\":0}"));
-        Check(room.PendingAction?.Sequence == 1, "Sentinel rejection confirmed a valid request.");
-        room.Apply(Snapshot("1", 1, hp: 85, actionSeq: 1));
-        Check(room.PendingAction is null && room.Players.Single().Hp == 85, "Confirmed action did not update server-owned HP.");
-        room.ActionFrame("skill");
-        using (JsonDocument move = JsonDocument.Parse(Decode(room.MoveFrame(140, 110)).Body))
-        {
-            Check(move.RootElement.GetProperty("seq").GetUInt32() == 1 && room.PendingAction?.Sequence == 2,
-                "Action and move sequences are coupled.");
-        }
-        room.Apply(Json(RoomSession.Error, "{\"code\":\"insufficient_resource\",\"message\":\"not enough MP\",\"action_seq\":2}"));
-        Check(room.PendingAction is null && room.HasSnapshot && room.Players.Single().ActionSequence == 1 && room.Players.Single().Mp == 100,
-            "Business rejection changed authoritative state or left the session unusable.");
-        room.ActionFrame("rest");
-        Check(room.PendingAction?.Sequence == 3, "Rejected requests reused the previous action sequence.");
-        room.Apply(Snapshot("1", 1, actionSeq: 3));
-        Check(room.PendingAction is null, "Higher accepted action sequence did not resolve the pending request.");
-        room.Reset();
-        room.Apply(Accepted("new"));
-        room.Apply(Snapshot("new", 0));
-        Check(room.PendingAction is null && room.LastProposedAction is null && room.ActionFeedback is null,
-            "Reconnect retained or retried an action.");
-        room.ActionFrame("damage");
-        Check(room.PendingAction?.Sequence == 1, "Fresh identity did not reset action sequence.");
-    }
-
-    private static void AttributeValidation()
-    {
-        var room = new RoomSession();
-        room.Apply(Accepted("1"));
-        room.Apply(Snapshot("1", 0));
-        var feedback = new ConfirmedAttributes();
-        Check(feedback.Observe(room.Players).Count == 0, "Initial snapshot fabricated HP/MP feedback.");
-        room.ActionFrame("damage");
-        Check(feedback.Observe(room.Players).Count == 0, "Action proposal generated visual damage.");
-        room.Apply(Snapshot("1", 0, hp: 85, mp: 80, actionSeq: 1));
-        Check(feedback.Observe(room.Players).Single() == new AttributeChange("1", -15, -20), "Feedback is not based on confirmed deltas.");
-        room.ActionFrame("rest");
-        room.Apply(Snapshot("1", 0, actionSeq: 2));
-        Check(feedback.Observe(room.Players).Single() == new AttributeChange("1", 15, 20), "Capped restore feedback invented an amount.");
-        room.ActionFrame("rest");
-        room.Apply(Snapshot("1", 0, actionSeq: 3));
-        Check(room.PendingAction is null && feedback.Observe(room.Players).Count == 0, "Accepted clamp/no-op generated fake attribute feedback.");
-        PlayerState previous = room.Players.Single();
-        Reject(() => room.Apply(Snapshot("1", 0, hp: 101, actionSeq: 3)));
-        Reject(() => room.Apply(Snapshot("1", 0, hpMax: 0, actionSeq: 3)));
-        Reject(() => room.Apply(Snapshot("1", 0, mp: 101, actionSeq: 3)));
-        Reject(() => room.Apply(Snapshot("1", 0, mpMax: 0, actionSeq: 3)));
-        Reject(() => room.Apply(Snapshot("1", 0, actionSeq: 2)));
-        string complete = Encoding.UTF8.GetString(Snapshot("1", 0, actionSeq: 3).Body);
-        foreach (string field in new[] { "hp", "mp", "hp_max", "mp_max" })
-        {
-            Reject(() => room.Apply(Json(RoomSession.Snapshot, complete.Replace($"\"{field}\":100,", "", StringComparison.Ordinal))));
-        }
-        Reject(() => room.Apply(Json(RoomSession.Snapshot, complete.Replace(",\"action_seq\":3", "", StringComparison.Ordinal))));
-        Reject(() => room.Apply(Json(RoomSession.Snapshot, complete.Replace("\"hp\":100", "\"hp\":-1", StringComparison.Ordinal))));
-        Reject(() => room.Apply(Json(RoomSession.Snapshot, complete.Replace("\"hp\":100", "\"hp\":4294967296", StringComparison.Ordinal))));
-        Reject(() => room.Apply(Json(RoomSession.Snapshot, complete.Replace("\"mp\":100", "\"mp\":1.5", StringComparison.Ordinal))));
-        Check(room.Players.Single() == previous, "Invalid stats partially replaced the roster.");
-        room.ActionFrame("rest");
-        string ownNext = Encoding.UTF8.GetString(Snapshot("1", 0, actionSeq: 4).Body);
-        string invalidPeer = "{\"id\":\"2\",\"name\":\"Bob\",\"x\":1,\"y\":1,\"seq\":0,\"hp\":101,\"mp\":100,\"hp_max\":100,\"mp_max\":100,\"action_seq\":0}";
-        Reject(() => room.Apply(Json(RoomSession.Snapshot, ownNext.Replace("]}", "," + invalidPeer + "]}", StringComparison.Ordinal))));
-        Check(room.PendingAction?.Sequence == 4 && room.Players.Single() == previous,
-            "Invalid peer stats prematurely confirmed the own action.");
-        room.Apply(Snapshot("1", 0, hp: 0, actionSeq: 4));
-        room.MoveFrame(10, 10);
-        Check(room.LastProposedMove is not null, "Zero HP disabled demo movement.");
-        room.Apply(Snapshot("1", 0, hp: uint.MaxValue, mp: uint.MaxValue, hpMax: uint.MaxValue, mpMax: uint.MaxValue, actionSeq: uint.MaxValue));
-        try
-        {
-            room.ActionFrame("rest");
-            throw new Exception("Exhausted action sequence wrapped.");
-        }
-        catch (InvalidOperationException) { }
-        feedback.Reset();
-        Check(feedback.Observe(room.Players).Count == 0, "Fresh observation retained old HP/MP deltas.");
-        room.Apply(Snapshot("1", 0, hp: 0, actionSeq: uint.MaxValue));
-        Check(feedback.Observe(room.Players).Single().HpDelta == -(long)uint.MaxValue, "Large uint delta overflowed.");
     }
 
     private static void DiagnosticsCorrelation()

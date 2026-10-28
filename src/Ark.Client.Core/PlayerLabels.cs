@@ -52,7 +52,7 @@ public static class PlayerLabels
         {
             string text = FitText(player.Name + " #" + player.Id, MaximumWidth, measure);
             float width = extraHeight > 0 ? MaximumWidth : measure(text);
-            float preferredX = Math.Clamp(player.X + 16, Padding, RoomSession.Width - width - Padding);
+            float preferredX = Math.Clamp((float)player.X + 16, Padding, RoomSession.Width - width - Padding);
             int preferredRow = Math.Clamp((int)((player.Y - height - 16 - Padding) / pitch), 0, rows - 1);
             LabelRectangle? chosen = null;
             // Try nearby rows first; five bounded fallback columns fit dense stat panels.

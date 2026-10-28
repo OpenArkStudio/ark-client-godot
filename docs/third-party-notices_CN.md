@@ -1,4 +1,4 @@
-# 素材署名
+# 第三方声明
 
 ## Godot Engine 标志
 
@@ -16,3 +16,7 @@ README 中独立的 Godot 图标使用[官方媒体素材](https://godotengine.o
 
 本仓库不包含作者的引擎代码、场景、音频或编辑器缓存。
 界面布局、瓦片放置和网络逻辑由本示例实现。场景装饰不增加服务端碰撞规则。
+
+## Google.Protobuf
+
+便携客户端使用官方 Google.Protobuf 3.33.4 运行时，采用 BSD-3-Clause。NuGet 包标注 Copyright 2015, Google Inc.；项目保留[上游许可文本](licenses/protobuf.txt)，分发运行时时应同时提供这些声明。消息源码由官方 protoc 33.4 从本项目的协议定义生成。
