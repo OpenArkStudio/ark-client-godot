@@ -24,6 +24,7 @@ internal static class Program
                 return 0;
             }
             Test("schema generated source and shared fixture SHA parity", () => ProtocolParity.Verify(ProtocolParity.FindRoot(), null));
+            Test("snake_case schema names preserve enum numbers and binary bytes", ProtocolNaming.Verify);
             Test("shared C++/C# protobuf golden frames", GoldenVectors);
             Test("every partial split and multiple frames", FragmentedFrames);
             Test("maximum body and malformed headers", HeaderBounds);

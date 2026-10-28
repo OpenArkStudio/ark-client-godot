@@ -23,6 +23,16 @@ runtime is locked to `3.33.4` with a NuGet content hash. Protocol/state code is
 portable C# and has no Godot dependency. The [manifest](../protocol/manifest.json)
 pins schema, generated source and shared golden fixture SHA-256 digests.
 
+Protocol filenames, package components, message/enum names, fields and enum
+values use lower snake_case. Official generated C# properties and enum members
+retain PascalCase, such as `ProtocolVersion` and `ActionDamage`. The new,
+unreleased action enum values are `action_unspecified=0`, `action_damage=1`,
+`action_skill=2` and `action_rest=3`. Their earlier `ACTION_*` source spelling
+was renamed without changing numbers or field tags. Consequently binary room
+frames and shared golden vectors are unchanged, while Protobuf JSON enum text
+now uses the lowercase names; earlier uppercase JSON spellings are not a
+compatibility promise. Room transport continues to use binary Protobuf.
+
 | ID | Direction | Generated message |
 | --- | --- | --- |
 | 60000 | Client → server | `join_request`: name, room, protocol_version=1 |
@@ -99,7 +109,8 @@ ordinary movement does not broadcast full room baselines. Creation/removal
 before first publication may be omitted.
 
 Movement and action sequences are independent uint32 counters, starting at 1.
-The action enum is DAMAGE=1, SKILL=2, REST=3; unspecified/unknown values fail.
+The action enum is `action_damage=1`, `action_skill=2`, `action_rest=3`;
+unspecified/unknown values fail.
 Damage subtracts 15 own HP, skill subtracts 20 own MP or rejects insufficient
 resources, and rest restores 20 to each value capped at its server-owned maximum.
 HP zero still permits demo movement. Accepted clamped actions advance

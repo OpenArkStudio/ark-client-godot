@@ -2,8 +2,8 @@
   "generator": "libprotoc 33.4",
   "runtime": "Google.Protobuf 3.33.4",
   "sha256": {
-    "protocol/guest_room.proto": "73031ca17d6ef1868be6bb5eda6e08c41cb3f6cbf94bf0855d85799f3c5c8c3e",
-    "src/Ark.Client.Core/Protocol/GuestRoom.cs": "1306e7319746900079842a393f52056847f5e2bf863cf0d7a645095a0feefe6a",
+    "protocol/guest_room.proto": "6abfc9bc96b2d1e9859eae5efd3bb6bed0c41af29c1c71340540312635f49a14",
+    "src/Ark.Client.Core/Protocol/GuestRoom.cs": "51b653df513af4ccb237ebb688b8ec0495a513e9e1d1db1384a87eeee4262efd",
     "tests/fixtures/wire-vectors.json": "149eabd6cf5d04849671567c967e03458f45f963594e9c0af3a168e7ae227f30"
   }
 }

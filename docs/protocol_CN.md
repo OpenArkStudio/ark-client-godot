@@ -20,6 +20,13 @@ C# 命名空间为 `Ark.Client.Protocol`。入仓 C# 类型由官方 `protoc 33.
 协议和状态代码为可移植 C#，不依赖 Godot。
 [清单](../protocol/manifest.json) 固定 schema、生成代码和共享协议向量的 SHA-256。
 
+协议文件名、package 分段、message/enum 名称、字段和枚举值统一采用小写 snake_case。
+官方生成的 C# 属性与枚举成员保留 PascalCase，例如 `ProtocolVersion` 和 `ActionDamage`。
+尚未发布的新动作枚举值为 `action_unspecified=0`、`action_damage=1`、`action_skill=2`、`action_rest=3`。
+本次将此前 `ACTION_*` 源码拼写改为小写，枚举数值和字段 tag 保持不变。
+因此二进制房间帧及共享向量不变，Protobuf JSON 枚举文本改用小写名称；不承诺兼容此前大写 JSON 拼写。
+房间传输仍采用二进制 Protobuf。
+
 | ID | 方向 | 生成消息 |
 | --- | --- | --- |
 | 60000 | 客户端 → 服务端 | `join_request`：name、room、protocol_version=1 |
@@ -79,7 +86,8 @@ schema 为 `ark.guest-player.v1`，class 为 `GuestPlayer`，选中字段严格�
 新连接先收到 Accepted，再收到一次完整房间基线；已有成员收到新增基线、增量和删除通知。
 普通移动不广播完整房间基线。首次发布前创建又删除的实体可以省略。
 
-移动与动作采用两套独立 uint32 序列号，从 1 开始。动作枚举为 DAMAGE=1、SKILL=2、REST=3，
+移动与动作采用两套独立 uint32 序列号，从 1 开始。
+动作枚举为 `action_damage=1`、`action_skill=2`、`action_rest=3`，
 未指定值和未知值均失败。受击减少自己 15 HP；技能消耗自己 20 MP，不足时拒绝；
 休息分别恢复 20 HP/MP，由服务端限制到上限。HP 为零仍允许示例移动。
 接受裁剪后没有属性变化的动作仍推进 `action_sequence`。

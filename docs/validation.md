@@ -10,7 +10,7 @@ The client uses official protoc 33.4 generated C# and pinned Google.Protobuf 3.3
 
 | Check | Local result |
 | --- | --- |
-| Permanent C# tests | 20 groups passed, including framing, exact scalar widths, zero-revision rejection, atomic room commits, identity, actions, malformed messages and actual TCP reconnect |
+| Permanent C# tests | 21 groups passed: the original 20 plus schema snake_case, enum numbers, unchanged binary action bytes and lowercase Protobuf JSON enum text |
 | Cross-language contract | Schema and 10 room-frame / 13 scalar-boundary vectors match the server byte-for-byte; official parsers preserve the encoded samples |
 | Generated source | protoc 33.4 regenerates the committed C# source byte-for-byte |
 | Native server checks | Codec: 8 cases / 471 assertions passed. The real launcher checks coalescing, late join, HP/MP, sequence-only actions, removal, reconnect, queue overflow, invalid frames, configuration limits and shutdown |
@@ -19,6 +19,10 @@ The client uses official protoc 33.4 generated C# and pinned Google.Protobuf 3.3
 | Two actual Godot clients | Alice and Bob each observed their own and the peer's damage 85/100, skill 85/80 and recovery 100/100 HP/MP before reconnecting. Both then observed fresh identities, reset attributes and authoritative movement |
 
 Movement and attribute updates use Protobuf scalar deltas after the initial baseline. Entity field definitions and business profiles remain JSON. The UI distinguishes authoritative state from visual smoothing and exposes baseline/delta counters.
+
+The naming follow-up reran portable C# checks and regenerated source parity.
+Server and engine results above precede that identifier-only change; the same
+binary golden vectors remain unchanged, and no long engine smoke was repeated.
 
 ## Reproduce
 

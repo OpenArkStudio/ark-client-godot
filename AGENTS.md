@@ -2,8 +2,8 @@
 
 - Use English Conventional Commits and short lowercase scopes. Name topic
   branches `type/short-kebab-case`. Changes to `main` go through a pull request.
-- Use conventional C# naming: PascalCase for types, namespaces, methods and public
-  properties; camelCase for locals and parameters; `_camelCase` for private
+- Use conventional C# naming for handwritten code: PascalCase for types,
+  namespaces, methods and public properties; camelCase for locals and parameters; `_camelCase` for private
   fields. Keep namespaces under `Ark.Client`.
 - Keep portable protocol, state and transport code independent from Godot APIs.
   Keep scene nodes responsible for engine lifecycle and presentation.
@@ -18,6 +18,11 @@
   server/two-client checks for wire changes. Upgrade incompatible client/server
   contracts together and document the migration; preserve owning, atomic
   baselines/deltas, revision validation and bounded reconnect recovery.
+- Use lower snake_case for `.proto` filenames, package components, messages,
+  enums, fields and enum values. Keep field tags and enum numbers stable during
+  naming changes. C# properties and enum members follow the official generator's
+  naming and retain its PascalCase API; do not rename them by hand. Enum source
+  renames also change Protobuf JSON enum text, even when binary bytes stay equal.
 - Keep English and Chinese documentation aligned with changed behavior. Document
   exact prerequisites, commands, tested revisions and material limitations.
 - Follow the ark/arknet README layout: separate light/dark ARK and Godot pictures, language

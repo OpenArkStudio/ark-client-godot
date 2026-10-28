@@ -57,9 +57,9 @@ namespace Ark.Client.Protocol {
             "b21fZGVsdGESDAoEcm9vbRgBIAEoCRI3CgVhZGRlZBgCIAMoCzIoLmFyay5w",
             "cm90b2J1Zi5ndWVzdF9yb29tLnBsYXllcl9iYXNlbGluZRI2CgdjaGFuZ2Vk",
             "GAMgAygLMiUuYXJrLnByb3RvYnVmLmd1ZXN0X3Jvb20uc2NhbGFyX2RlbHRh",
-            "KlsKC2FjdGlvbl9raW5kEhYKEkFDVElPTl9VTlNQRUNJRklFRBAAEhEKDUFD",
-            "VElPTl9EQU1BR0UQARIQCgxBQ1RJT05fU0tJTEwQAhIPCgtBQ1RJT05fUkVT",
-            "VBADQhaqAhNBcmsuQ2xpZW50LlByb3RvY29sYgZwcm90bzM="));
+            "KlsKC2FjdGlvbl9raW5kEhYKEmFjdGlvbl91bnNwZWNpZmllZBAAEhEKDWFj",
+            "dGlvbl9kYW1hZ2UQARIQCgxhY3Rpb25fc2tpbGwQAhIPCgthY3Rpb25fcmVz",
+            "dBADQhaqAhNBcmsuQ2xpZW50LlByb3RvY29sYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::Ark.Client.Protocol.action_kind), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -82,10 +82,10 @@ namespace Ark.Client.Protocol {
   }
   #region Enums
   public enum action_kind {
-    [pbr::OriginalName("ACTION_UNSPECIFIED")] ActionUnspecified = 0,
-    [pbr::OriginalName("ACTION_DAMAGE")] ActionDamage = 1,
-    [pbr::OriginalName("ACTION_SKILL")] ActionSkill = 2,
-    [pbr::OriginalName("ACTION_REST")] ActionRest = 3,
+    [pbr::OriginalName("action_unspecified")] ActionUnspecified = 0,
+    [pbr::OriginalName("action_damage")] ActionDamage = 1,
+    [pbr::OriginalName("action_skill")] ActionSkill = 2,
+    [pbr::OriginalName("action_rest")] ActionRest = 3,
   }
 
   #endregion
