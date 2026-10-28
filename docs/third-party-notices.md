@@ -2,7 +2,7 @@
 
 ## Godot Engine logo
 
-The separate Godot wordmark in the README uses the original light/dark SVGs from the [official press kit](https://godotengine.org/press/): [light](https://godotengine.org/assets/press/logo_small_color_light.svg) and [dark](https://godotengine.org/assets/press/logo_small_color_dark.svg). Copyright (c) 2017 Andrea Calabró; [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), with the [upstream notice included](images/godot/LICENSE.txt). The files are unchanged and displayed at their original proportions to identify the engine used by this independent OpenArkStudio demo.
+The separate Godot icon in the README uses the original [colored SVG](https://godotengine.org/assets/press/icon_color.svg) from the [official press kit](https://godotengine.org/press/). Copyright (c) 2017 Andrea Calabró; [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), with the [upstream notice included](images/godot/LICENSE.txt). The file is unchanged and displayed at its original proportions to identify the engine used by this independent OpenArkStudio demo.
 
 ## Ninja Adventure
 

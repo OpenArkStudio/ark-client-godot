@@ -2,12 +2,13 @@
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/OpenArkStudio/.github/main/assets/ark-logo-dark.svg?v=20261022">
-    <img src="https://raw.githubusercontent.com/OpenArkStudio/.github/main/assets/ark-logo-light.svg?v=20261022" alt="ARK" width="225">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/OpenArkStudio/.github/main/assets/ark-icon-dark.svg?v=20261022">
+    <img src="https://raw.githubusercontent.com/OpenArkStudio/.github/main/assets/ark-icon.svg?v=20261022" alt="ARK" width="160" align="middle">
   </picture>
+  &nbsp; &times; &nbsp;
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/godot/logo-dark.svg">
-    <img src="docs/images/godot/logo-light.svg" alt="Godot Engine" width="272">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/godot/icon.svg">
+    <img src="docs/images/godot/icon.svg" alt="Godot Engine" width="128" align="middle">
   </picture>
 </p>
 
