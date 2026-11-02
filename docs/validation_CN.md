@@ -35,8 +35,12 @@ bash tools/build.sh
 bash tools/check-engine.sh
 bash tools/test-live.sh 127.0.0.1 19100
 bash tools/smoke-two-clients.sh 127.0.0.1 19100
+# 可选：显示两个窗口，并分别保存客户端自身的画面。
+bash tools/smoke-two-clients.sh 127.0.0.1 19100 --render
 ```
 
 `DOTNET` 与 `GODOT` 可指定仓库外的可执行文件，见[运行说明](run_CN.md)。联调要求空大厅与本机 socket 权限，验证功能行为，不测量延迟或吞吐。托管检查以对应 PR 的结果单独记录，原始日志仅保存在本机。
+
+`--render` 需要图形桌面，执行相同的移动、HP／MP 和重连断言，将 `alice.png`、`bob.png` 保存到输出的日志目录后退出。截图仅包含 Godot 自身画面，无需桌面录屏权限；生成图片不代替人工视觉检查或桌面导出测试。默认仍为无界面模式。
 
 这些有界检查不代表生产容量、跨主机网络、任意插件热更新或桌面导出包兼容性。重连会创建新的访客身份与状态；认证和持久化不在本演示范围内。

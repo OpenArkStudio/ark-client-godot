@@ -36,8 +36,12 @@ bash tools/build.sh
 bash tools/check-engine.sh
 bash tools/test-live.sh 127.0.0.1 19100
 bash tools/smoke-two-clients.sh 127.0.0.1 19100
+# Optional: run with two visible windows and capture each client's own viewport.
+bash tools/smoke-two-clients.sh 127.0.0.1 19100 --render
 ```
 
 `DOTNET` and `GODOT` select external executables as described in [run instructions](run.md). The live tests require an empty lobby and local socket access; they verify functional behavior, not latency or throughput. Hosted checks are reported separately on the matching PR. Raw logs remain local.
+
+`--render` requires a graphical desktop. It runs the same movement, HP/MP and reconnect assertions, saves `alice.png` and `bob.png` in the printed log directory, and exits. Captures contain only the Godot viewport; no desktop screen-recording permission is needed. Image creation does not replace visual inspection or desktop export testing. The default remains headless.
 
 These bounded checks do not establish production capacity, cross-host behavior, arbitrary plugin hot updates or exported desktop-package compatibility. Reconnect creates a new guest identity and state; authentication and persistence are outside this demo.
