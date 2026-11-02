@@ -327,6 +327,10 @@ public partial class GuestRoom : Node2D
         }
         if (_smoke && _clock >= _smokeSuccessAt)
         {
+            if (!CaptureSmokeFrame())
+            {
+                return;
+            }
             GetTree().Quit(0);
         }
 
@@ -375,6 +379,27 @@ public partial class GuestRoom : Node2D
             _nextMove = _clock + 0.1;
             Send(frame!);
         }
+    }
+
+    private bool CaptureSmokeFrame()
+    {
+        if (!_options.TryGetValue("capture-path", out string? path))
+        {
+            return true;
+        }
+        if (DisplayServer.GetName() == "headless")
+        {
+            Fail("Smoke capture requires a rendered display.", retry: false);
+            return false;
+        }
+        using Image image = GetViewport().GetTexture().GetImage();
+        if (image is null || image.IsEmpty() || image.SavePng(path) != Error.Ok)
+        {
+            Fail("Cannot save the rendered smoke frame.", retry: false);
+            return false;
+        }
+        GD.Print($"SMOKE RENDER {_name.Text} display={DisplayServer.GetName()} width={image.GetWidth()} height={image.GetHeight()} path={path}");
+        return true;
     }
 
     private void Smoke()
