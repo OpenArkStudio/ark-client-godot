@@ -5,14 +5,20 @@ dotnet_cmd=${DOTNET:-dotnet}
 host=${1:-127.0.0.1}
 port=${2:-19100}
 seconds=${3:-600}
-if [[ ! "$seconds" =~ ^[0-9]+$ ]] || (( seconds < 30 || seconds > 3600 )); then
-  printf 'Usage: %s [host] [port] [seconds: 30..3600]\n' "$0" >&2
+mode=${4:-}
+if [[ ! "$seconds" =~ ^[0-9]+$ ]] || (( seconds < 30 || seconds > 3600 )) || [[ -n "$mode" && "$mode" != --no-build ]]; then
+  printf 'Usage: %s [host] [port] [seconds: 30..3600] [--no-build]\n' "$0" >&2
   exit 2
 fi
 logs=$(mktemp -d "${TMPDIR:-/tmp}/ark-godot-soak.XXXXXX")
 printf 'Local soak logs: %s\n' "$logs"
-"$dotnet_cmd" build "$repo/tests/Ark.Client.Core.Tests/Ark.Client.Core.Tests.csproj" --disable-build-servers -m:1
 dll="$repo/tests/Ark.Client.Core.Tests/bin/Debug/net8.0/Ark.Client.Core.Tests.dll"
+if [[ "$mode" == --no-build ]]; then
+  [[ -f "$dll" ]] || { printf 'Build the matching client test DLL first.\n' >&2; exit 1; }
+  printf 'Using previously built client DLL: %s\n' "$dll"
+else
+  "$dotnet_cmd" build "$repo/tests/Ark.Client.Core.Tests/Ark.Client.Core.Tests.csproj" --disable-build-servers -m:1 -p:UseSharedCompilation=false -p:ConcurrentBuild=false
+fi
 pids=()
 sampler_pid=
 cleanup() {

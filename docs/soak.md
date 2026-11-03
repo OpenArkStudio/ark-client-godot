@@ -14,6 +14,11 @@ seconds before the residents so both can confirm its final removal. A start
 barrier requires all three clients to join before timed activity begins. The
 server must be owned by the operator; the runner does not start or stop it.
 
+For an already built, matching test DLL, append `--no-build`. The normal build
+disables shared compilation and compiler parallelism as well as build servers.
+Keep each worktree's `obj` and output directories independent when another local
+build is active; `DOTNET_CLI_HOME` can select an isolated CLI state directory.
+
 Each client requests one move, one action and one ping about every 250 ms. Every
 iteration waits up to eight seconds for the matching movement sequence and
 position, action sequence and HP/MP, and heartbeat nonce. Actions repeat damage,
