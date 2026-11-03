@@ -101,3 +101,8 @@ join, movement and HP/MP deltas, accepted capped rest, peer removal, fresh recon
 and ping. It requires exactly one full baseline per connection. Malformed payloads,
 revision gaps and atomic rejection remain separate permanent fixture/loopback tests.
 The live runner does not establish same-flush server coalescing by itself.
+
+For two resident portable C# clients and a third that repeatedly rejoins, run
+`bash tools/soak-three-clients.sh 127.0.0.1 19100 600` against a dedicated empty
+room. Duration, resource samples and the separate workload/wrapper receipts are
+described in the [bounded local multi-process soak](soak.md).

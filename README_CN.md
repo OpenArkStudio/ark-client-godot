@@ -78,7 +78,7 @@ godot --path . -- --host=127.0.0.1 --port=19100 --name=Bob --connect
 
 客户端提议动作，由 ark 确定最终位置和属性。意外断线后最多重试五次，重新连接会创建新的访客状态。示例提供 16 个访客名额，不包含账号、持久化、加密与 Web 导出，也不代表生产容量验收。
 
-[数据流程](docs/data-sync_CN.md) · [协议](docs/protocol_CN.md) · [测试](docs/validation_CN.md) · [参与贡献](AGENTS.md) · [素材署名](docs/third-party-notices_CN.md)
+[数据流程](docs/data-sync_CN.md) · [协议](docs/protocol_CN.md) · [测试](docs/validation_CN.md) · [本机持续验收](docs/soak_CN.md) · [参与贡献](AGENTS.md) · [素材署名](docs/third-party-notices_CN.md)
 
 ---
 
