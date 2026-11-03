@@ -18,6 +18,15 @@ internal static class Program
             {
                 return await LiveIntegration.Run(args);
             }
+            if (args.FirstOrDefault() == "--soak-client")
+            {
+                return await SoakIntegration.Run(args);
+            }
+            if (args.FirstOrDefault() == "--soak-verify")
+            {
+                SoakIntegration.Verify(args[1]);
+                return 0;
+            }
             if (args.FirstOrDefault() == "--protocol-parity")
             {
                 ProtocolParity.Verify(args[1], args.ElementAtOrDefault(2));

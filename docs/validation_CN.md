@@ -27,6 +27,8 @@
 
 ## 复现方式
 
+两个常驻进程加第三个进程反复入退房的长时检查，见[有界本机多进程持续验收](soak_CN.md)。
+
 先构建并启动配套的 [ark 房间服务端](https://github.com/OpenArkStudio/ark/tree/main/examples/guest_room)，再执行：
 
 ```sh

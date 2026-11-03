@@ -27,6 +27,9 @@ The headless and rendered checks both exited successfully, followed by a success
 
 ## Reproduce
 
+For a longer run with two resident processes and a third process repeatedly
+joining and leaving, see the [bounded local multi-process soak](soak.md).
+
 Build and stage the matching [ark room server](https://github.com/OpenArkStudio/ark/tree/main/examples/guest_room), then run:
 
 ```sh
