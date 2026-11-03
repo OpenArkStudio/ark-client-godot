@@ -19,31 +19,89 @@ if [[ "$mode" == --no-build ]]; then
 else
   "$dotnet_cmd" build "$repo/tests/Ark.Client.Core.Tests/Ark.Client.Core.Tests.csproj" --disable-build-servers -m:1 -p:UseSharedCompilation=false -p:ConcurrentBuild=false
 fi
-pids=()
-clients_active=no
+pids=("" "" "")
 sampler_pid=
+started=no
+active_jobs=
+read_active_jobs() {
+  active_jobs=" $(jobs -pr) $(jobs -ps) "
+  active_jobs=${active_jobs//$'\n'/ }
+}
+retire_client() {
+  local index=$1 pid=${pids[$1]} rc=0
+  # Retire before wait so an interrupt cannot signal an already-reaped PID.
+  pids[$index]=
+  wait "$pid" || rc=$?
+  touch "$logs/reaped-$index"
+  printf 'client_%s_exit=%s\n' "$index" "$rc" >> "$logs/exit-codes.txt"
+  return "$rc"
+}
+poll_clients() {
+  local index pid rc
+  read_active_jobs
+  for index in 0 1 2; do
+    pid=${pids[$index]}
+    if [[ -z "$pid" || "$active_jobs" == *" $pid "* ]]; then continue; fi
+    rc=0
+    retire_client "$index" || rc=$?
+    if [[ "$rc" != 0 || "$started" == no ]]; then
+      printf 'Client %s exited before completion: %s\n' "$index" "$rc" >&2
+      if [[ "$rc" == 0 ]]; then rc=1; fi
+      return "$rc"
+    fi
+  done
+}
 cleanup() {
-  if [[ -n "$sampler_pid" ]]; then kill "$sampler_pid" 2>/dev/null || true; wait "$sampler_pid" 2>/dev/null || true; fi
-  if [[ "$clients_active" == yes ]]; then
-    for pid in "${pids[@]}"; do kill "$pid" 2>/dev/null || true; done
-    for pid in "${pids[@]}"; do wait "$pid" 2>/dev/null || true; done
+  local status=$? pid index attempt
+  trap - EXIT
+  trap '' INT TERM
+  read_active_jobs
+  if [[ -n "$sampler_pid" ]]; then
+    pid=$sampler_pid
+    sampler_pid=
+    if [[ "$active_jobs" == *" $pid "* ]]; then kill "$pid" 2>/dev/null || true; fi
+    wait "$pid" 2>/dev/null || true
   fi
+  read_active_jobs
+  for pid in "${pids[@]}"; do
+    if [[ -n "$pid" && "$active_jobs" == *" $pid "* ]]; then kill "$pid" 2>/dev/null || true; fi
+  done
+  for attempt in {1..50}; do
+    read_active_jobs
+    for index in 0 1 2; do
+      pid=${pids[$index]}
+      if [[ -n "$pid" && "$active_jobs" != *" $pid "* ]]; then retire_client "$index" || true; fi
+    done
+    if [[ -z "${pids[0]}${pids[1]}${pids[2]}" ]]; then break; fi
+    sleep .1
+  done
+  read_active_jobs
+  for index in 0 1 2; do
+    pid=${pids[$index]}
+    if [[ -z "$pid" ]]; then continue; fi
+    if [[ "$active_jobs" == *" $pid "* ]]; then kill -KILL "$pid" 2>/dev/null || true; fi
+    retire_client "$index" || true
+  done
+  exit "$status"
 }
 trap cleanup EXIT
 trap 'exit 130' INT TERM
+index=0
 for name in Alice Bob Churn; do
   role=resident
   if [[ "$name" == Churn ]]; then role=churn; fi
   "$dotnet_cmd" "$dll" --soak-client "$host" "$port" "$name" "$role" "$seconds" "$logs" > "$logs/$name.log" 2>&1 &
-  pids+=("$!")
-  clients_active=yes
+  pids[$index]=$!
   printf '%s %s\n' "$name" "$!" >> "$logs/processes.txt"
+  index=$((index + 1))
 done
 (
+  trap - EXIT INT TERM
   printf 'unix_seconds name pid cpu_percent rss_kib cpu_time\n'
   while true; do
     active=no
     for index in 0 1 2; do
+      if [[ -f "$logs/reaped-$index" ]]; then continue; fi
       pid=${pids[$index]}
       name=Alice
       if [[ "$index" == 1 ]]; then name=Bob; fi
@@ -60,19 +118,17 @@ done
 sampler_pid=$!
 for attempt in {1..160}; do
   if [[ -f "$logs/ready-Alice" && -f "$logs/ready-Bob" && -f "$logs/ready-Churn" ]]; then break; fi
-  for pid in "${pids[@]}"; do kill -0 "$pid" 2>/dev/null || { cat "$logs/"*.log; exit 1; }; done
+  poll_clients
   sleep .1
 done
 [[ -f "$logs/ready-Alice" && -f "$logs/ready-Bob" && -f "$logs/ready-Churn" ]]
 touch "$logs/begin"
+started=yes
 result=0
-for index in 0 1 2; do
-  rc=0
-  wait "${pids[$index]}" || rc=$?
-  printf 'client_%s_exit=%s\n' "$index" "$rc" >> "$logs/exit-codes.txt"
-  if [[ "$rc" != 0 ]]; then result=1; fi
+while [[ -n "${pids[0]}${pids[1]}${pids[2]}" ]]; do
+  poll_clients
+  sleep .1
 done
-clients_active=no
 for name in Alice Bob Churn; do
   tail -1 "$logs/$name.log"
   grep -q "^SOAK PASS $name " "$logs/$name.log" || result=1

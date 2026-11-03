@@ -16,13 +16,14 @@ append `--no-build` to use an already built, matching test DLL.
 | Churn | Rejoins about every five seconds; finishes five seconds early so residents confirm removal |
 | Activity | One move, action and ping about every 250 ms; actions cycle damage, skill, rest and capped rest |
 | Assertions | Matching position/sequences, HP/MP and nonce within eight seconds; fresh reconnect identity/baseline; every churn addition/removal observed; no retry or replay |
-| Evidence | Temporary per-process logs, JSON counts, exits, PIDs and approximately one-second CPU/RSS samples |
+| Supervision | First nonzero client exit stops/reaps the others; reaped PIDs are retired before further signals; remaining children are killed after a five-second termination grace |
+| Evidence | Temporary logs, counts, exits, PIDs and approximately one-second CPU/RSS samples; `bash tools/test-soak-runner.sh` checks child failures without networking |
 
 Local acceptance on **2026-11-03** used Apple M4 Pro, 14 cores, 48 GB reported
 memory, macOS 27.0.1 arm64, SDK 8.0.427/runtime 8.0.33 and loopback port 19531.
 The server used Debug/Apple clang 21.0.0; the client used Google.Protobuf 3.33.4.
 
-| Input | Identity |
+| 600-second input | Identity |
 | --- | --- |
 | ARK server | `c9aa911a4893ffa2681925e8ebf13e703f8f4c16`; six candidate images byte-matched and loaded images checked |
 | Client inputs | Build `9f4a8f91da260a562e34f5ff02e1a4139a7440d7`; execution `1e6181e160b663cffec3e032f75fc1dc778d4326`; C# inputs byte-identical |
@@ -41,8 +42,8 @@ failures. Both residents observed all 112 churn additions/removals.
 | Check | Result |
 | --- | --- |
 | 600-second activity | All three clients exited 0; cross-process verification passed; original wrapper exited 1 afterward on Bash PID-array cleanup |
-| 30-second cleanup regression | Fixed wrapper and all clients exited 0; this does not relabel the 600-second receipt |
-| Both owned servers | SIGINT exit 0 without force; listeners and owned processes exited |
+| 30-second supervised runner | Port 19533: 337 confirmed iterations; wrapper, clients and count verification exited 0; this does not relabel the 600-second receipt |
+| Server shutdowns | SIGINT exit 0 without force; listeners and owned processes exited |
 
 | Process | Average CPU % | Peak sampled CPU % | RSS at 30–60 s, MiB | Final 30 s RSS, MiB | Peak sampled RSS, MiB |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -55,6 +56,5 @@ Average CPU uses cumulative process CPU time / observed wall time; 100% is one
 logical core. RSS columns are window means, with 1024 KiB per MiB. Other local
 validation shared the host; this is not an isolated throughput/latency benchmark.
 
-This bounded portable C# workload does not test Godot scenes, exported packages,
-cross-host behavior or production PCU capacity, and does not establish absence
-of leaks. Complete binary manifests and raw receipts remain local. Other checks: [validation](validation.md).
+These portable C# checks do not validate Godot scenes, exported packages,
+cross-host behavior, production PCU or absence of leaks. Complete manifests and raw receipts stay local; [other checks](validation.md).
