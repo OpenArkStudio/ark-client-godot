@@ -20,11 +20,14 @@ else
   "$dotnet_cmd" build "$repo/tests/Ark.Client.Core.Tests/Ark.Client.Core.Tests.csproj" --disable-build-servers -m:1 -p:UseSharedCompilation=false -p:ConcurrentBuild=false
 fi
 pids=()
+clients_active=no
 sampler_pid=
 cleanup() {
   if [[ -n "$sampler_pid" ]]; then kill "$sampler_pid" 2>/dev/null || true; wait "$sampler_pid" 2>/dev/null || true; fi
-  for pid in "${pids[@]}"; do kill "$pid" 2>/dev/null || true; done
-  for pid in "${pids[@]}"; do wait "$pid" 2>/dev/null || true; done
+  if [[ "$clients_active" == yes ]]; then
+    for pid in "${pids[@]}"; do kill "$pid" 2>/dev/null || true; done
+    for pid in "${pids[@]}"; do wait "$pid" 2>/dev/null || true; done
+  fi
 }
 trap cleanup EXIT
 trap 'exit 130' INT TERM
@@ -33,6 +36,7 @@ for name in Alice Bob Churn; do
   if [[ "$name" == Churn ]]; then role=churn; fi
   "$dotnet_cmd" "$dll" --soak-client "$host" "$port" "$name" "$role" "$seconds" "$logs" > "$logs/$name.log" 2>&1 &
   pids+=("$!")
+  clients_active=yes
   printf '%s %s\n' "$name" "$!" >> "$logs/processes.txt"
 done
 (
@@ -68,7 +72,7 @@ for index in 0 1 2; do
   printf 'client_%s_exit=%s\n' "$index" "$rc" >> "$logs/exit-codes.txt"
   if [[ "$rc" != 0 ]]; then result=1; fi
 done
-pids=()
+clients_active=no
 for name in Alice Bob Churn; do
   tail -1 "$logs/$name.log"
   grep -q "^SOAK PASS $name " "$logs/$name.log" || result=1
