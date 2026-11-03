@@ -74,6 +74,8 @@ production deployment, exported package, cross-host network or capacity
 validation is implied by these checks.
 
 Recorded local results and proof boundaries: [validation scope](validation.md).
+For a macOS development app and the same smoke against bundled assets,
+see [local macOS export](export.md).
 
 Run `bash tools/check-format.sh` after restoring/building the projects to verify
 C# whitespace and explicit control-flow braces. The `Client checks` workflow

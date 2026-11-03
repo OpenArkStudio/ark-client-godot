@@ -2,6 +2,13 @@
 set -euo pipefail
 repo=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 godot_cmd=${GODOT:-godot}
+client_cmd=${EXPORTED_CLIENT:-$godot_cmd}
+if [[ -n "${EXPORTED_CLIENT:-}" ]]; then
+  if [[ "$EXPORTED_CLIENT" != /* || ! -x "$EXPORTED_CLIENT" ]]; then
+    printf 'EXPORTED_CLIENT must name an absolute executable path.\n' >&2
+    exit 2
+  fi
+fi
 host=${1:-127.0.0.1}
 port=${2:-19100}
 mode=${3:-}
@@ -11,6 +18,9 @@ if [[ -n "$mode" && "$mode" != --render ]]; then
 fi
 logs=$(mktemp -d "${TMPDIR:-/tmp}/ark-godot-smoke.XXXXXX")
 engine_args=(--audio-driver Dummy)
+if [[ -z "${EXPORTED_CLIENT:-}" ]]; then
+  engine_args+=(--path "$repo")
+fi
 alice_args=(--smoke --host="$host" --port="$port" --name=Alice --peer-name=Bob)
 bob_args=(--smoke --host="$host" --port="$port" --name=Bob --peer-name=Alice)
 if [[ "$mode" == --render ]]; then
@@ -25,9 +35,9 @@ cleanup() {
   if [[ -n "$bob_pid" ]]; then kill "$bob_pid" 2>/dev/null || true; fi
 }
 trap cleanup EXIT INT TERM
-"$godot_cmd" "${engine_args[@]}" --path "$repo" -- "${alice_args[@]}" >"$logs/alice.log" 2>&1 &
+"$client_cmd" "${engine_args[@]}" -- "${alice_args[@]}" >"$logs/alice.log" 2>&1 &
 alice_pid=$!
-"$godot_cmd" "${engine_args[@]}" --path "$repo" -- "${bob_args[@]}" >"$logs/bob.log" 2>&1 &
+"$client_cmd" "${engine_args[@]}" -- "${bob_args[@]}" >"$logs/bob.log" 2>&1 &
 bob_pid=$!
 alice_rc=0; bob_rc=0
 wait "$alice_pid" || alice_rc=$?
