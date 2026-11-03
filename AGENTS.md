@@ -35,5 +35,10 @@
 - Coordinate shared compiler resources and use serial build execution when
   required. Distinguish portable checks, engine build, engine execution and real
   server integration; one does not establish the others.
-- Preserve unrelated work. The root agent owns remote creation, pushes, pull
-  requests and hosted CI observation for the current coordinated delivery.
+- Across the coordinated work, maintain three delivery lines when independent,
+  authorized tasks have ready dependencies. Refill each completed line in the
+  confirmed priority order; do not repeat passed validation or expand unconfirmed
+  scope to fill a slot. This does not authorize scheduled or unattended automation.
+- Preserve unrelated work. The root agent alone observes hosted CI and controls
+  remote creation, pushes, PR readiness and per-repository FIFO admission for the
+  current coordinated delivery.
