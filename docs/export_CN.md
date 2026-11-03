@@ -1,50 +1,44 @@
 # macOS 本地开发包导出
 
-在 macOS 上使用 Godot **4.7.2 .NET** 编辑器、版本匹配的 **.NET 导出模板**和
-.NET SDK **8.0.427**。按[运行说明](run_CN.md)选择仓库外的引擎与 SDK，并将 SDK
-目录加入 `PATH`。通过 **Editor > Manage Export Templates** 安装匹配的模板，
-或将模板解压到引擎的外部模板目录。Godot 独立模式可以将模板与设置保存在常规用户
-目录之外，参见[官方数据路径说明](https://docs.godotengine.org/en/4.7/tutorials/io/data_paths.html#self-contained-mode)。
-首次导出还需要联网获取 `osx-arm64` 和 `osx-x64` 的 .NET 运行时包，或使用已填充的
-外部 NuGet 缓存。工具、包缓存和应用产物均不得提交到版本控制。
+在 macOS 上使用 Godot **4.7.2 .NET**、匹配的 **.NET 导出模板**和 SDK
+**8.0.427**。按[运行说明](run_CN.md)选择仓库外的工具，并将 SDK 加入 `PATH`。
+通过 **Editor > Manage Export Templates** 安装模板。需要联网获取或已缓存的
+`osx-arm64` / `osx-x64` 运行时包。可见 smoke 还要求图形桌面，以及协议匹配、
+大厅为空的 guest-room 服务端。
 
 ```sh
-# 指定一个新的绝对路径；脚本不会覆盖已有应用。
+# 指定新的绝对路径；已有应用不会被覆盖。
 bash tools/export-macos.sh /absolute/output/ArkGuestRoom.app
-```
-
-仓库中的 `macOS development` preset 使用官方 **Universal 2** 模板导出调试应用，
-关闭代码签名与公证。引擎会导入资源，并将每种架构的 C# 程序集与运行时发布到包内。
-Core 依赖继续锁定还原：macOS 发布选择独立的 RID 锁文件，普通可移植构建仍使用
-原锁文件。项目启用了 Godot 通用架构导出要求的 ETC2/ASTC 导入。脚本还会检查引擎
-错误诊断，避免 .NET 发布失败时引擎仍退出 0、留下不完整应用的情况。
-
-该包仅用于本地开发，没有执行应用签名或公证。上游模板可执行文件可能保留 Godot
-自身的签名，该签名不代表此应用包已签名。该包没有分发验收；从网络下载的
-未签名应用可能被 Gatekeeper 拦截。脚本不会修改系统设置或移除隔离属性。
-
-直接启动包内的可执行文件，并在客户端参数前保留 `--` 分隔符：
-
-```sh
-"/absolute/output/ArkGuestRoom.app/Contents/MacOS/ARK Guest Room" \
-  -- --host=127.0.0.1 --port=19100 --name=Alice --connect
-```
-
-自动验收时，先启动协议匹配且大厅为空的 guest-room 服务端，然后用已有双客户端
-smoke 入口启动导出包：
-
-```sh
 EXPORTED_CLIENT="/absolute/output/ArkGuestRoom.app/Contents/MacOS/ARK Guest Room" \
   bash tools/smoke-two-clients.sh 127.0.0.1 19100 --render
 ```
 
-`EXPORTED_CLIENT` 必须是可执行文件的绝对路径。此模式不传入 `--path`，因此两个
-进程均使用包内资源与程序集。测试复用场景中的入房、移动、自身和对方 HP/MP、
-断线重连及新身份断言，并在输出的临时目录保留日志与视口截图。`--render` 需要
-图形桌面；省略该参数即可无头运行。未设置 `EXPORTED_CLIENT` 时仍通过 `GODOT`
-启动源项目。导出成功、包内程序运行、本地服务端集成与视觉检查分别证明不同事实。
-通用架构应用本身不证明 Intel Mac 可执行。此流程不验证 Windows、Linux、跨主机
-行为、发布包或生产用途。
+| 设置 | 行为 |
+| --- | --- |
+| `macOS development` | 官方 Universal 2 调试模板；关闭签名与公证 |
+| 应用包 | 包含 arm64 / x86_64 的 C# 程序集及独立运行时；启用 ETC2/ASTC 导入 |
+| Core 锁文件 | macOS 使用独立 RID 锁；保留原 portable 锁及锁定还原 |
+| 导出检查 | 拒绝引擎错误诊断、缺失的可执行文件或架构程序集 |
+| `EXPORTED_CLIENT` | 可执行文件绝对路径；不传入 `--path`，使用包内资源 |
+| Smoke 产物 | 日志与截图保存在输出的临时目录；省略 `--render` 即无头运行 |
 
-官方参考：[macOS 导出](https://docs.godotengine.org/en/4.7/tutorials/export/exporting_for_macos.html)
-与 [Godot .NET 下载](https://godotengine.org/download/macos/)。
+**2026-11-03** 本地验收环境：macOS 27.0.1、Apple M4 Pro arm64、
+Godot `4.7.2.stable.mono.official.ed1daf0bf`、SDK `8.0.427`。
+
+| 输入 / 检查 | 结果 |
+| --- | --- |
+| 客户端源码 | `d8d61a33ad3aed30b376d514fd99ddb3d84a734f` |
+| 客户端 tree | `97b95d3efe9ae74ae27e45c83809138f15bb18ba` |
+| ARK 服务端源码 | `c9aa911a4893ffa2681925e8ebf13e703f8f4c16`；复用该候选的六个二进制，独立回环端口 19486 |
+| 导出 / portable 锁定还原与构建 | 通过，退出 0；原 portable 锁不变 |
+| 两个可见导出客户端 | READY、入房、移动、自身及对方受伤 → 技能 → 休息、新身份重连通过；客户端与 runner 均退出 0 |
+| 截图 | 两张均为 1120×824；已检查房间、YOU/PLAYER 标记及重置后的 HP/MP |
+| 服务端关闭 | SIGINT 退出 0，没有强杀；监听端口已释放 |
+
+这是**未签名、未公证的本地开发应用**。Godot 上游模板保留的签名不覆盖此应用包，
+严格签名校验退出 1。本机 arm64 已在没有编辑器/SDK 环境变量的条件下执行通过。
+Intel、Gatekeeper/下载分发、Windows/Linux、跨主机行为与生产用途均未验收。
+详细来源记录和原始日志保存在本地 receipt。
+
+官方参考：[macOS 导出](https://docs.godotengine.org/en/4.7/tutorials/export/exporting_for_macos.html)、
+[Godot .NET 下载](https://godotengine.org/download/macos/)。
