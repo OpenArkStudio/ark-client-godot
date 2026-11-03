@@ -62,6 +62,7 @@ NETWORK 展示属性上限、确认的 `action_seq` 以及待确认和已提议�
 这些检查不代表账号登录、生产部署、导出安装包、跨主机网络或容量验证。
 
 本地结果及证明边界见 [验证范围](validation_CN.md)。
+macOS 开发包及复用相同 smoke 验收包内资源的入口见 [本地 macOS 导出](export_CN.md)。
 
 还原并构建项目后，执行 `bash tools/check-format.sh`，验证 C# 空白格式及控制流的显式花括号。
 `Client checks` 工作流选择 SDK `8.0.427`，在 Linux、macOS 与 Windows 上运行可移植代码检查及格式检查。
