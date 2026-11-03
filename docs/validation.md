@@ -25,6 +25,20 @@ Movement and attribute updates use Protobuf scalar deltas after the initial base
 
 The headless and rendered checks both exited successfully, followed by a successful SIGINT shutdown of the owned server. Captures and raw logs remain local.
 
+## Bounded sustained run on 2026-11-03
+
+These later portable C# checks are separate from the engine results above.
+
+| Scope | Local result |
+| --- | --- |
+| 600-second activity | All three clients exited 0; 7096 moves, actions and pings each were acknowledged, and cross-process verification passed. The original wrapper exited 1 afterward because of Bash PID-array cleanup |
+| 30-second wrapper regression | After the cleanup fix, the wrapper and all clients exited 0 |
+
+Both owned servers stopped with SIGINT/exit 0 and their listeners exited. Exact
+source revisions, binary hashes, source/blob equivalence and resource observations
+are in the [local soak report](soak.md). These checks do not run Godot scenes or
+exported packages.
+
 ## Reproduce
 
 Build and stage the matching [ark room server](https://github.com/OpenArkStudio/ark/tree/main/examples/guest_room), then run:

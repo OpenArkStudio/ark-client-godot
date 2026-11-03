@@ -78,7 +78,7 @@ Portable toolchain setup and troubleshooting are in the [run guide](docs/run.md)
 
 The client proposes actions; ark decides the resulting positions and attributes. Unexpected disconnects retry up to five times. Reconnecting creates fresh guest state. The sample has 16 guest slots and does not provide accounts, persistence, encryption, web export or production capacity validation.
 
-[Data flow](docs/data-sync.md) · [Protocol](docs/protocol.md) · [Tests](docs/validation.md) · [Contribute](AGENTS.md) · [Art credits](docs/third-party-notices.md)
+[Data flow](docs/data-sync.md) · [Protocol](docs/protocol.md) · [Tests](docs/validation.md) · [Local soak](docs/soak.md) · [Contribute](AGENTS.md) · [Art credits](docs/third-party-notices.md)
 
 ---
 
