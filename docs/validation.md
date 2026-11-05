@@ -19,7 +19,7 @@ No production or accepted-main execution is implied by these local results.
 | --- | --- |
 | Portable C# | All 22 permanent check groups passed, including real loopback transport and connection failure |
 | Shared protocol | Both canonical schemas and 15 room / 13 scalar-boundary vectors match C++ byte-for-byte; protoc regenerates C# exactly |
-| Native codec | Generic GUID64: 11 cases / 114 assertions; GUID32: 11 / 115. Room codec: 8 cases / 518 assertions |
+| Native codec | Generic codec `f950e246`: GUID64 13 cases / 122 assertions; GUID32 13 / 123, including both Windows-macro include orders. Room codec: 8 cases / 518 assertions |
 | Native room | Real launcher/plugins and two TCP peers passed row deletion/reuse, equipment replacement/patches, movement, errors, reconnect and normal shutdown |
 | Two C# clients | Movement, HP/MP, potion row removal/reuse, both weapon swaps, independent retained power, removal and fresh-identity reconnect passed; each connection installed one room baseline |
 | Godot build/import | Build passed without warnings/errors; resource import completed |
