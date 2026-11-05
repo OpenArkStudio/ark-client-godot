@@ -1,5 +1,7 @@
 # Local macOS development export
 
+> The recorded export below uses the former scalar room protocol. It does not validate the current nested Entity contract. Export both matching client/server inputs again before using an application bundle. Current project execution is recorded in [Validation](validation.md).
+
 On macOS, use Godot **4.7.2 .NET**, matching **.NET export templates**, and SDK
 **8.0.427**. Select external tools and put the SDK on `PATH` as in
 [run instructions](run.md). Install templates through **Editor > Manage Export
