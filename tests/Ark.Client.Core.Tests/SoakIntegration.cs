@@ -1,6 +1,9 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Ark.Client.Core;
+using Ark.Client.Protocol;
+using Ark.Client.Protocol.EntitySync;
 
 namespace Ark.Client.Testing;
 
@@ -8,30 +11,57 @@ internal static class SoakIntegration
 {
     public static void Verify(string directory)
     {
+        SoakWorkload.RequireLocalOutput(directory);
         var results = new[] { "Alice", "Bob", "Churn" }.Select(name =>
             JsonSerializer.Deserialize<Counters>(File.ReadAllText(Path.Combine(directory, "result-" + name + ".json")))!).ToArray();
+        Program.Check(results.Select(result => result.TestAssemblySha256).Distinct().Count() == 1 &&
+            results.Select(result => result.ClientCoreSha256).Distinct().Count() == 1, "Clients used different workload/core assemblies.");
         Counters churn = results[2];
         foreach (Counters result in results)
         {
-            Program.Check(result.Failures == 0 && result.Connections == result.Disconnects && result.Baselines == (ulong)result.Connections &&
-                result.Moves == result.Damage + result.Skill + result.Rest + result.CappedRest && result.Moves == result.Pongs &&
-                result.TxFrames == result.Connections + 3L * result.Moves, "Incomplete acknowledged workload: " + result.Name);
+            int cycles = result.CompletedCycles;
+            Program.Check(result.SchemaId == RoomSession.SchemaId && result.ProtocolVersion == 2 &&
+                result.PlannedCycles == SoakWorkload.Cycles(result.RequestedSeconds, result.Role == "churn") &&
+                result.Failures == 0 && cycles == result.PlannedCycles && cycles > 0 && result.Connections == result.Disconnects &&
+                result.Baselines == (ulong)result.Connections && result.Moves == cycles * SoakWorkload.CycleLength && result.Moves == result.Pongs &&
+                result.Damage == cycles && result.Skill == cycles && result.Rest == cycles && result.CappedRest == cycles &&
+                result.PotionUses == 2 * cycles && result.Pickups == 2 * cycles && result.Equips == 2 * cycles && result.Upgrades == 2 * cycles &&
+                result.RowRemovals == cycles && result.RowReuses == cycles && result.ContainerReplacements == 2 * cycles && result.ChildPatches == result.ExpectedChildPatches &&
+                result.TxFrames == result.Connections + 3L * result.Moves, "Incomplete acknowledged nested workload: " + result.Name);
         }
         Program.Check(churn.Connections > 1 && churn.FreshReconnects == churn.Connections - 1, "Churn did not create fresh connections.");
         foreach (Counters resident in results.Take(2))
         {
             Program.Check(resident.PeerJoins == churn.Connections + 1 && resident.PeerRemovals >= churn.Connections &&
-                resident.PeerRemovals <= churn.Connections + 1, "Resident missed a churn join/removal: " + resident.Name);
+                resident.PeerRemovals <= churn.Connections + 1 && resident.ResidentPeerSteps == resident.Moves,
+                "Resident missed a peer phase or churn join/removal: " + resident.Name);
         }
-        Console.WriteLine($"SOAK VERIFIED processes=3 max_joined=3 connections={results.Sum(result => result.Connections)} " +
-            $"moves={results.Sum(result => result.Moves)} actions={results.Sum(result => result.Moves)} pongs={results.Sum(result => result.Pongs)} failures=0");
+        Console.WriteLine($"SOAK VERIFIED protocol=2 processes=3 max_joined=3 connections={results.Sum(result => result.Connections)} " +
+            $"cycles={results.Sum(result => result.CompletedCycles)} moves={results.Sum(result => result.Moves)} actions={results.Sum(result => result.Moves)} " +
+            $"pongs={results.Sum(result => result.Pongs)} resident_peer_steps={results.Sum(result => result.ResidentPeerSteps)} failures=0");
     }
 
     private sealed class Counters
     {
         public string Name { get; init; } = "";
         public string Role { get; init; } = "";
-        public int ProcessId { get; } = Environment.ProcessId;
+        public string SchemaId { get; init; } = RoomSession.SchemaId;
+        public int ProtocolVersion { get; init; } = 2;
+        public string TestAssemblySha256 { get; init; } = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(typeof(Program).Assembly.Location))).ToLowerInvariant();
+        public string ClientCoreSha256 { get; init; } = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(typeof(RoomSession).Assembly.Location))).ToLowerInvariant();
+        public int ProcessId { get; init; } = Environment.ProcessId;
+        public int RequestedSeconds
+        {
+            get; init;
+        }
+        public int PlannedCycles
+        {
+            get; init;
+        }
+        public int CompletedCycles
+        {
+            get; set;
+        }
         public double ElapsedSeconds
         {
             get; set;
@@ -68,7 +98,47 @@ internal static class SoakIntegration
         {
             get; set;
         }
+        public int PotionUses
+        {
+            get; set;
+        }
+        public int Pickups
+        {
+            get; set;
+        }
+        public int Equips
+        {
+            get; set;
+        }
+        public int Upgrades
+        {
+            get; set;
+        }
+        public int RowRemovals
+        {
+            get; set;
+        }
+        public int RowReuses
+        {
+            get; set;
+        }
+        public int ContainerReplacements
+        {
+            get; set;
+        }
+        public int ChildPatches
+        {
+            get; set;
+        }
+        public int ExpectedChildPatches
+        {
+            get; set;
+        }
         public int Pongs
+        {
+            get; set;
+        }
+        public int ResidentPeerSteps
         {
             get; set;
         }
@@ -122,18 +192,29 @@ internal static class SoakIntegration
         }
     }
 
+    private sealed record Progress(int Step, ulong EntityId);
+
     private sealed class Session
     {
         public TcpConnection Connection { get; } = new();
         public RoomSession Room { get; } = new();
         private readonly Counters _counts;
+        private readonly string _control;
+        private readonly Stopwatch _clock;
+        private readonly HashSet<long> _retiredEntities;
+        public HashSet<long> EntityIds { get; } = new();
+        private readonly Dictionary<ulong, SoakState> _observed = new();
         private Dictionary<ulong, PlayerState> _peers = new();
         private Task? _receive;
         private bool _closed;
+        private ulong _lastOwnDeltaRevision;
 
-        public Session(Counters counts)
+        public Session(Counters counts, string control, Stopwatch clock, HashSet<long> retiredEntities)
         {
             _counts = counts;
+            _control = control;
+            _clock = clock;
+            _retiredEntities = retiredEntities;
         }
 
         public async Task Connect(string host, int port)
@@ -142,8 +223,7 @@ internal static class SoakIntegration
             await Until(() => Connection.IsConnected);
             await Connection.SendAsync(RoomSession.JoinFrame(_counts.Name));
             await Until(() => Room.HasSnapshot);
-            Program.Check(Room.BaselineCount == 1 && Own() is { Hp: 100, Mp: 100, Sequence: 0, ActionSequence: 0 },
-                "New connection did not install a fresh baseline and initial attributes.");
+            Program.Check(Room.BaselineCount == 1 && _observed.ContainsKey(Room.EntityId), "Fresh baseline was not observed.");
             _counts.Connections++;
         }
 
@@ -151,6 +231,8 @@ internal static class SoakIntegration
 
         public void Poll()
         {
+            Program.Check(!_clock.IsRunning || _clock.Elapsed.TotalSeconds <= SoakWorkload.Cycles(_counts.RequestedSeconds, false) * SoakWorkload.CycleSeconds + 15,
+                "The workload exceeded its fixed duration and acknowledgement grace.");
             while (Connection.TryDequeue(out TransportEvent? item))
             {
                 if (item!.Kind == "closed")
@@ -163,8 +245,35 @@ internal static class SoakIntegration
                 }
                 Room.Apply(frame);
                 Program.Check(Room.LastError is null, "Server rejected activity: " + Room.LastError);
-                Program.Check(Room.Players.All(player => player.Name is "Alice" or "Bob" or "Churn"),
-                    "Soak runner requires a dedicated empty lobby.");
+                if (frame.MessageId == RoomSession.Delta)
+                {
+                    ObserveOperations(frame);
+                }
+                Program.Check(Room.Players.All(player => player.Name is "Alice" or "Bob" or "Churn"), "Soak runner requires a dedicated empty lobby.");
+                foreach (PlayerState player in Room.Players)
+                {
+                    if (player.EntityId == Room.EntityId)
+                    {
+                        long root = checked((long)player.EntityId), equipment = player.Equipment.Single().EntityId;
+                        Program.Check(!_retiredEntities.Contains(root) && !_retiredEntities.Contains(equipment), "Reconnect reused a root or equipment Entity GUID.");
+                        EntityIds.Add(root);
+                        EntityIds.Add(equipment);
+                    }
+                    // Residents validate each other's complete phase history. Churn validates its own fresh stream;
+                    // its join may legitimately reach residents after its first publication has coalesced.
+                    if (player.EntityId != Room.EntityId && (_counts.Role != "resident" || player.Name == "Churn"))
+                    {
+                        continue;
+                    }
+                    if (_observed.TryGetValue(player.EntityId, out SoakState? state))
+                    {
+                        state.Observe(player);
+                    }
+                    else
+                    {
+                        _observed.Add(player.EntityId, new SoakState(player));
+                    }
+                }
                 _counts.MaxPlayers = Math.Max(_counts.MaxPlayers, Room.Players.Count);
                 var peers = Room.Players.Where(player => player.EntityId != Room.EntityId).ToDictionary(player => player.EntityId);
                 _counts.PeerRemovals += _peers.Keys.Count(id => !peers.ContainsKey(id));
@@ -190,58 +299,90 @@ internal static class SoakIntegration
             }
         }
 
+        private void ObserveOperations(Frame frame)
+        {
+            room_delta envelope = ProtobufMessages.Parse(frame.Body, room_delta.Parser, room_delta.Descriptor);
+            foreach (nested_delta change in envelope.Changed)
+            {
+                if (change.Root.EntityId != checked((long)Room.EntityId) || change.Revision <= _lastOwnDeltaRevision)
+                {
+                    continue;
+                }
+                _lastOwnDeltaRevision = change.Revision;
+                foreach (table_delta table in change.Root.Tables.Where(table => table.Index == 200))
+                {
+                    _counts.RowRemovals += table.Rows.Count(row => row.Number == 1 && row.Incarnation == 0);
+                    _counts.RowReuses += table.Rows.Count(row => row.Number == 1 && row.RequiredIncarnation == 0 && row.Incarnation != 0);
+                }
+                foreach (container_delta container in change.Root.Containers.Where(container => container.Index == 300))
+                {
+                    if (container.UpdateCase == container_delta.UpdateOneofCase.Replacement)
+                    {
+                        _counts.ContainerReplacements++;
+                    }
+                    else if (container.UpdateCase == container_delta.UpdateOneofCase.Patch &&
+                        container.Patch.Changed.Any(child => child.Slot == 1 && child.Change.Fields.Any(field => field.Index == 2)))
+                    {
+                        _counts.ChildPatches++;
+                    }
+                }
+            }
+        }
+
         public async Task Until(Func<bool> predicate)
         {
             var deadline = Stopwatch.StartNew();
-            do
+            while (deadline.Elapsed <= TimeSpan.FromSeconds(8))
             {
                 Poll();
                 if (predicate())
                 {
                     return;
                 }
-                if (deadline.Elapsed > TimeSpan.FromSeconds(8))
-                {
-                    throw new TimeoutException(_counts.Name + ": activity or coordination acknowledgement timed out.");
-                }
                 await Task.Delay(5);
-            } while (true);
+            }
+            throw new TimeoutException(_counts.Name + ": activity or coordination acknowledgement timed out.");
         }
 
-        public async Task Activity(int tick)
+        public async Task Activity(int tick, int residentStep)
         {
-            double x = 80 + tick * 17 % 800;
-            double y = 60 + tick * 11 % 420;
+            double x = 80 + tick * 17 % 800, y = 60 + tick * 11 % 420;
             await Connection.SendAsync(Room.MoveFrame(x, y));
             uint moveSequence = Room.LastProposedMove!.Sequence;
-            string kind = (tick % 4) switch
-            {
-                0 => "damage",
-                1 => "skill",
-                _ => "rest"
-            };
-            PlayerState before = Own();
-            uint hp = kind switch
-            {
-                "damage" => before.Hp - Math.Min(15u, before.Hp),
-                "rest" => Math.Min(before.HpMax, before.Hp + 20),
-                _ => before.Hp
-            };
-            uint mp = kind switch
-            {
-                "skill" => before.Mp - 20,
-                "rest" => Math.Min(before.MpMax, before.Mp + 20),
-                _ => before.Mp
-            };
-            await Connection.SendAsync(Room.ActionFrame(kind));
+            int phase = tick % SoakWorkload.CycleLength;
+            bool expectedChildPatch = phase is 9 or 11 && Own().Equipment.Single().Power < 100;
+            await Connection.SendAsync(Room.ActionFrame(SoakWorkload.Kinds[phase]));
             uint actionSequence = Room.LastProposedAction!.Sequence;
             uint nonce = (uint)tick + 1;
             await Connection.SendAsync(RoomSession.PingFrame(nonce));
             await Until(() => Own() is var player && player.Sequence == moveSequence && player.X == x && player.Y == y &&
-                player.ActionSequence == actionSequence && player.Hp == hp && player.Mp == mp && Room.PendingAction is null && Room.LastPong == nonce);
+                player.ActionSequence == actionSequence && Room.PendingAction is null && Room.LastPong == nonce);
+            if (_counts.Role == "resident")
+            {
+                string path = Path.Combine(_control, "progress-" + _counts.Name + ".json");
+                File.WriteAllText(path + ".tmp", JsonSerializer.Serialize(new Progress(residentStep, Room.EntityId)));
+                File.Move(path + ".tmp", path, true);
+                string other = _counts.Name == "Alice" ? "Bob" : "Alice";
+                await Until(() =>
+                {
+                    string peerPath = Path.Combine(_control, "progress-" + other + ".json");
+                    if (!File.Exists(peerPath))
+                    {
+                        return false;
+                    }
+                    Progress progress = JsonSerializer.Deserialize<Progress>(File.ReadAllText(peerPath))!;
+                    return progress.Step >= residentStep && _observed.TryGetValue(progress.EntityId, out SoakState? state) &&
+                        state.Current.ActionSequence >= residentStep && state.Current.Sequence >= residentStep;
+                });
+                _counts.ResidentPeerSteps++;
+            }
             _counts.Moves++;
             _counts.Pongs++;
-            switch (tick % 4)
+            if (expectedChildPatch)
+            {
+                _counts.ExpectedChildPatches++;
+            }
+            switch (phase)
             {
                 case 0:
                     _counts.Damage++;
@@ -254,6 +395,18 @@ internal static class SoakIntegration
                     break;
                 case 3:
                     _counts.CappedRest++;
+                    break;
+                case 4 or 5:
+                    _counts.PotionUses++;
+                    break;
+                case 6 or 7:
+                    _counts.Pickups++;
+                    break;
+                case 8 or 10:
+                    _counts.Equips++;
+                    break;
+                case 9 or 11:
+                    _counts.Upgrades++;
                     break;
             }
         }
@@ -287,73 +440,69 @@ internal static class SoakIntegration
             !int.TryParse(args[5], out int seconds) || seconds is < 30 or > 3600 ||
             !((args[3] is "Alice" or "Bob" && args[4] == "resident") || (args[3] == "Churn" && args[4] == "churn")))
         {
-            Console.Error.WriteLine("Usage: --soak-client host port Alice|Bob|Churn resident|churn seconds control-directory");
+            Console.Error.WriteLine("Usage: --soak-client host port Alice|Bob|Churn resident|churn seconds absolute-local-control-directory");
             return 2;
         }
         string host = args[1], name = args[3], role = args[4], control = args[6];
-        var counts = new Counters { Name = name, Role = role };
+        SoakWorkload.RequireLocalOutput(control);
+        int cycles = SoakWorkload.Cycles(seconds, role == "churn");
+        var counts = new Counters { Name = name, Role = role, RequestedSeconds = seconds, PlannedCycles = cycles };
         var elapsed = new Stopwatch();
+        var retiredEntities = new HashSet<long>();
         Session? session = null;
         try
         {
-            session = new Session(counts);
+            session = new Session(counts, control, elapsed, retiredEntities);
             await session.Connect(host, port);
             await session.Until(() => session.Room.Players.Count == 3);
             File.WriteAllText(Path.Combine(control, "ready-" + name), "ready\n");
             await session.Until(() => File.Exists(Path.Combine(control, "begin")));
             elapsed.Start();
             int tick = 0, nextProgress = 30;
-            double sessionStart = 0;
+            double nextTick = 0;
             var identities = new HashSet<(string?, ulong)> { (session.Room.PlayerId, session.Room.EntityId) };
-            int activeSeconds = role == "churn" ? seconds - 5 : seconds;
-            while (elapsed.Elapsed.TotalSeconds < activeSeconds)
+            for (int cycle = 0; cycle < cycles; cycle++)
             {
-                double tickStart = elapsed.Elapsed.TotalMilliseconds;
-                await session!.Activity(tick++);
+                for (int phase = 0; phase < SoakWorkload.CycleLength; phase++)
+                {
+                    await session!.Until(() => elapsed.Elapsed.TotalMilliseconds >= nextTick);
+                    await session!.Activity(tick++, cycle * SoakWorkload.CycleLength + phase + 1);
+                    // Use absolute slots so Task.Delay rounding does not accumulate over a long run.
+                    // A late acknowledgement starts a new slot rather than producing catch-up sends.
+                    nextTick = Math.Max(nextTick + SoakWorkload.TickMilliseconds, elapsed.Elapsed.TotalMilliseconds);
+                }
+                await session!.Until(() => elapsed.Elapsed.TotalMilliseconds >= nextTick);
+                counts.CompletedCycles++;
                 if (elapsed.Elapsed.TotalSeconds >= nextProgress)
                 {
-                    Console.WriteLine($"SOAK PROGRESS {name} elapsed={elapsed.Elapsed.TotalSeconds:F1} connections={counts.Connections} moves={counts.Moves} actions={counts.Moves} peer_joins={counts.PeerJoins} peer_removals={counts.PeerRemovals}");
+                    Console.WriteLine($"SOAK PROGRESS {name} elapsed={elapsed.Elapsed.TotalSeconds:F1} cycles={counts.CompletedCycles}/{cycles} connections={counts.Connections} moves={counts.Moves} peer_joins={counts.PeerJoins} peer_removals={counts.PeerRemovals}");
                     nextProgress += 30;
                 }
-                if (role == "churn" && elapsed.Elapsed.TotalSeconds - sessionStart >= 5)
+                if (role == "churn" && (cycle + 1) % 2 == 0 && cycle + 1 < cycles)
                 {
-                    await session.Close();
+                    await session!.Close();
+                    retiredEntities.UnionWith(session.EntityIds);
                     session = null;
                     await Task.Delay(250);
-                    if (elapsed.Elapsed.TotalSeconds >= activeSeconds)
-                    {
-                        break;
-                    }
-                    session = new Session(counts);
+                    session = new Session(counts, control, elapsed, retiredEntities);
                     await session.Connect(host, port);
-                    Program.Check(identities.All(id => id.Item1 != session.Room.PlayerId && id.Item2 != session.Room.EntityId),
-                        "Reconnect reused a guest identity.");
+                    Program.Check(identities.All(id => id.Item1 != session.Room.PlayerId && id.Item2 != session.Room.EntityId), "Reconnect reused a guest identity.");
                     identities.Add((session.Room.PlayerId, session.Room.EntityId));
                     counts.FreshReconnects++;
-                    sessionStart = elapsed.Elapsed.TotalSeconds;
                     tick = 0;
-                }
-                while (elapsed.Elapsed.TotalMilliseconds - tickStart < 250)
-                {
-                    session?.Poll();
-                    await Task.Delay(5);
+                    nextTick = elapsed.Elapsed.TotalMilliseconds;
                 }
             }
             if (role == "resident")
             {
                 await session!.Until(() => File.Exists(Path.Combine(control, "done-Churn")) && session.Room.Players.Count == 2);
-                Program.Check(counts.Connections == 1 && counts.PeerJoins >= 3 && counts.PeerRemovals >= 2 &&
-                    counts.PeerMoves > 0 && counts.PeerActions > 0, "Resident did not observe sustained peer activity and churn.");
+                Program.Check(counts.Connections == 1 && counts.PeerMoves > 0 && counts.PeerActions > 0, "Resident did not observe peer activity.");
                 File.WriteAllText(Path.Combine(control, "settled-" + name), "settled\n");
                 await session.Until(() => File.Exists(Path.Combine(control, "settled-Alice")) && File.Exists(Path.Combine(control, "settled-Bob")));
             }
-            Program.Check(counts.MaxPlayers == 3 && counts.Moves > 0 && counts.CappedRest > 0, "No complete three-client workload observed.");
+            Program.Check(counts.MaxPlayers == 3 && counts.CompletedCycles == cycles, "Incomplete three-client nested workload.");
         }
-        catch (Exception error)
-        {
-            counts.Failures++;
-            Console.Error.WriteLine(error);
-        }
+        catch (Exception error) { counts.Failures++; Console.Error.WriteLine(error); }
         finally
         {
             if (session is not null)

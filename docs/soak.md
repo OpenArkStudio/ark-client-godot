@@ -1,25 +1,60 @@
 # Bounded local multi-process soak
 
-> Sustained acceptance is paused until the [5,000-connection investigation](https://github.com/OpenArkStudio/arknet/issues/61) is resolved and passes. The dated results below used earlier protocol inputs; no sustained result is claimed for the current nested contract.
+> **PENDING:** sustained acceptance of the current nested Entity protocol must wait until the [5,000-connection investigation](https://github.com/OpenArkStudio/arknet/issues/61) is fixed and passes. The tool preparation below is not a sustained-run receipt.
 
-Use .NET 8 and a dedicated, empty guest-room server. Select external tools as in
-the [run guide](run.md); the operator starts and stops the server.
+Use .NET 8 and a dedicated empty guest-room server built with the matching current
+[protocol](protocol.md). The operator starts and stops that server. After the
+connection issue is resolved and the run is explicitly scheduled, select external
+tools as in the [run guide](run.md):
 
 ```sh
-DOTNET=/path/to/dotnet bash tools/soak-three-clients.sh 127.0.0.1 19100 600
+DOTNET=/path/to/dotnet bash tools/soak-three-clients.sh \
+  127.0.0.1 19100 600 /absolute/local/soak-run
 ```
 
-Duration defaults to 600 seconds and accepts 30–3600. The runner builds serially;
-append `--no-build` to use an already built, matching test DLL.
+Duration is required and accepts 30–3600 seconds. The output directory is also
+required: an absolute, absent or empty local directory outside Git repositories.
+Existing evidence is never overwritten, and raw logs/metrics are not publication
+assets. The runner builds serially; append `--no-build` only for an already built,
+matching test DLL. Files record source HEAD/status, both client assembly SHA-256
+values, workload counts, process exits/PIDs and one-second CPU/RSS samples. Record
+server revision, binaries, settings and shutdown evidence separately.
 
-| Mode / output | Behavior |
+| Mode / bound | Behavior |
 | --- | --- |
-| Residents | Alice and Bob retain one connection each; timing starts after all three clients join |
-| Churn | Rejoins about every five seconds; finishes five seconds early so residents confirm removal |
-| Activity | One move, action and ping about every 250 ms; actions cycle damage, skill, rest and capped rest |
-| Assertions | Matching position/sequences, HP/MP and nonce within eight seconds; fresh reconnect identity/baseline; every churn addition/removal observed; no retry or replay |
-| Supervision | First nonzero client exit stops/reaps the others; reaped PIDs are retired before further signals; remaining children are killed after a five-second termination grace |
-| Evidence | Temporary logs, counts, exits, PIDs and approximately one-second CPU/RSS samples; `bash tools/test-soak-runner.sh` checks child failures without networking |
+| Residents | Alice and Bob keep one connection each; timing starts after all three clients join |
+| Complete cycle | 12 moves/actions/pings targeting 250 ms per step: damage, skill, rest, capped rest, Drink twice, pickup twice, switch, strengthen, switch back, strengthen |
+| Both views | Every committed envelope is observed; each resident waits for the other resident's validated move/action phase before advancing |
+| Nested assertions | Quantity patches, last-row removal, row reuse with a greater incarnation; weapon replacement, child power changes with stable GUID/incarnation, returning weapon's retained power |
+| Churn | Reconnect after two complete cycles, about six seconds plus reconnect time; reserve pause and settling time, verify fresh root/equipment identities and initial state; no retry after failure |
+| Duration plan | Residents round up to a complete three-second cycle, at most two planned seconds beyond the request; churn reserves five seconds and its 250 ms reconnect pauses |
+| Failure bounds | Eight-second activity/coordination deadline, 15-second workload grace after planned duration, finite wrapper watchdog at requested seconds + 60 |
+| Supervision | First nonzero client exit stops/reaps the others; retired PIDs are not signalled; five-second termination grace before killing only remaining owned children |
+
+Each full cycle confirms a move, action and matching pong at every step.
+Cross-process verification checks completed cycles, exact action/row/container
+operation totals, child patch counts (allowing capped no-ops), both-view
+progress and every churn addition/removal. The server and other processes are
+never stopped by this wrapper. No workload runs indefinitely or retries until green.
+
+Prepare without contacting a server:
+
+```sh
+/path/to/dotnet build tests/Ark.Client.Core.Tests/Ark.Client.Core.Tests.csproj --disable-build-servers -m:1
+/path/to/dotnet tests/Ark.Client.Core.Tests/bin/Debug/net8.0/Ark.Client.Core.Tests.dll --soak-workload
+TMPDIR=/absolute/local/test-temp bash tools/test-soak-runner.sh
+```
+
+The permanent C# check covers finite scheduling and valid/invalid nested state
+transitions, including capped power and lifetime regressions. The shell fixture
+checks failed, interrupted and stubborn children without networking. These checks
+compile/verify the tool; they do not validate a sustained server run, Godot scene
+or exported package.
+
+## Earlier protocol results
+
+The dated measurements below used earlier protocol inputs and are historical.
+They do not establish sustained acceptance of the current nested contract.
 
 Local acceptance on **2026-11-03** used Apple M4 Pro, 14 cores, 48 GB reported
 memory, macOS 27.0.1 arm64, SDK 8.0.427/runtime 8.0.33 and loopback port 19531.

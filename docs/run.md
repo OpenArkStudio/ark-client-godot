@@ -123,7 +123,11 @@ revision gaps and atomic rejection remain separate permanent fixture/loopback te
 The live runner does not establish same-flush server coalescing by itself.
 
 For two resident portable C# clients and a third that repeatedly rejoins, run
-`bash tools/soak-three-clients.sh 127.0.0.1 19100 600` against a dedicated empty
-room. Duration, resource samples and the separate workload/wrapper receipts are
-described in the [bounded local multi-process soak](soak.md). That workload covers
-movement, HP/MP, ping and churn; it does not issue inventory/equipment actions.
+`bash tools/soak-three-clients.sh 127.0.0.1 19100 600 /absolute/local/soak-run`
+against a dedicated empty room. The explicit output directory must be absent or
+empty and outside Git repositories. The bounded nested workload covers movement,
+HP/MP, potion row removal/reuse, equipment replacement/power/identity, both
+resident views, ping and periodic fresh reconnects. Its permanent preparation
+test is `--soak-workload`; duration, cleanup and evidence scopes are in
+[bounded local multi-process soak](soak.md). Sustained acceptance remains
+**PENDING** until the 5,000-connection issue is fixed and passes.
