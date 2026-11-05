@@ -52,18 +52,33 @@ case "$name" in
 esac
 CLIENT
 chmod +x "$base/fake-dotnet"
+expect_argument_rejection() {
+  local rc=0
+  DOTNET="$base/fake-dotnet" /bin/bash "$fixture/tools/soak-three-clients.sh" "$@" > "$base/argument-rejection.log" 2>&1 || rc=$?
+  [[ "$rc" == 2 ]]
+}
+expect_argument_rejection 127.0.0.1 19100 30
+expect_argument_rejection 127.0.0.1 19100 29 "$base/invalid-duration"
+mkdir "$base/preserved"
+printf 'retained\n' > "$base/preserved/canary"
+expect_argument_rejection 127.0.0.1 19100 30 "$base/preserved"
+[[ "$(cat "$base/preserved/canary")" == retained ]]
+git init -q "$base/guard-repo"
+expect_argument_rejection 127.0.0.1 19100 30 "$base/guard-repo/output"
+[[ ! -e "$base/guard-repo/output" && ! -e "$base/invalid-duration" ]]
+printf 'PASS explicit_output_required=yes existing_evidence_preserved=yes git_output_rejected=yes\n'
 for scenario in failure interrupted stubborn; do
   case_dir="$base/$scenario"
   mkdir "$case_dir"
   started=$(date +%s)
   SOAK_FAULT_CASE="$scenario" SOAK_FAULT_ROOT="$case_dir" BASH_ENV="$base/trace-env.sh" \
     TMPDIR="$case_dir" DOTNET="$base/fake-dotnet" /bin/bash "$fixture/tools/soak-three-clients.sh" \
-    127.0.0.1 19100 30 --no-build > "$case_dir/runner.log" 2>&1 &
+    127.0.0.1 19100 30 "$case_dir/output" --no-build > "$case_dir/runner.log" 2>&1 &
   runner_pid=$!
   if [[ "$scenario" == interrupted ]]; then
     retired=no
     for attempt in {1..60}; do
-      for logs in "$case_dir"/ark-godot-soak.*; do
+      for logs in "$case_dir/output"; do
         if [[ -f "$logs/exit-codes.txt" ]] && grep -q '^client_0_exit=0$' "$logs/exit-codes.txt" && grep -q '^client_2_exit=0$' "$logs/exit-codes.txt"; then retired=yes; break; fi
       done
       if [[ "$retired" == yes ]]; then break; fi
@@ -82,7 +97,7 @@ for scenario in failure interrupted stubborn; do
   bob_exit=143
   if [[ "$scenario" == stubborn ]]; then limit=10; bob_exit=137; fi
   [[ "$rc" == "$expected" && "$elapsed" -lt "$limit" ]]
-  for logs in "$case_dir"/ark-godot-soak.*; do
+  for logs in "$case_dir/output"; do
     [[ $(wc -l < "$logs/exit-codes.txt") -eq 3 ]]
     grep -q "^client_1_exit=$bob_exit$" "$logs/exit-codes.txt"
     [[ -s "$case_dir/kill-trace.txt" ]]

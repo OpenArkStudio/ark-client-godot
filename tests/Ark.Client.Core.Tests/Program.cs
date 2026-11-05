@@ -28,6 +28,11 @@ internal static class Program
                 SoakIntegration.Verify(args[1]);
                 return 0;
             }
+            if (args.FirstOrDefault() == "--soak-workload")
+            {
+                Test("finite nested soak plan and committed state transitions", SoakWorkloadTests.Verify);
+                return 0;
+            }
             if (args.FirstOrDefault() == "--protocol-parity")
             {
                 ProtocolParity.Verify(args[1], args.ElementAtOrDefault(2));
@@ -49,6 +54,7 @@ internal static class Program
             Test("reconnect clears partial frame", ResetCodec);
             Test("all scalar alternatives retain widths and zero presence", ScalarBoundaries);
             Test("generic nested owning atomic receiver and lifetime limits", NestedReplicaTests.Verify);
+            Test("finite nested soak plan and committed state transitions", SoakWorkloadTests.Verify);
             Test("baseline delta add remove duplicate and fresh identity", ReplicaLifecycle);
             Test("whole room rejects atomically including own pending action", AtomicEnvelope);
             Test("schema types ranges gaps generations and resurrection fail", InvalidReplica);
