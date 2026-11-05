@@ -17,7 +17,8 @@ public static class ProtobufMessages
             ValidateShape(body, descriptor, 0);
             T message = parser.ParseFrom(body);
             if (message is Ark.Client.Protocol.action_request action &&
-                action.Kind is not (Ark.Client.Protocol.action_kind.ActionDamage or Ark.Client.Protocol.action_kind.ActionSkill or Ark.Client.Protocol.action_kind.ActionRest))
+                action.Kind is not (Ark.Client.Protocol.action_kind.ActionDamage or Ark.Client.Protocol.action_kind.ActionSkill or Ark.Client.Protocol.action_kind.ActionRest or
+                    Ark.Client.Protocol.action_kind.ActionPickup or Ark.Client.Protocol.action_kind.ActionUsePotion or Ark.Client.Protocol.action_kind.ActionEquip or Ark.Client.Protocol.action_kind.ActionUpgrade))
             {
                 throw new InvalidDataException("Unknown action enum.");
             }
@@ -31,7 +32,7 @@ public static class ProtobufMessages
 
     private static void ValidateShape(byte[] bytes, MessageDescriptor descriptor, int depth)
     {
-        if (depth > 12)
+        if (depth > 64)
         {
             throw new InvalidDataException("Protobuf nesting limit exceeded.");
         }
@@ -62,6 +63,16 @@ public static class ProtobufMessages
                 FieldType.String or FieldType.Bytes or FieldType.Message => WireFormat.WireType.LengthDelimited,
                 _ => WireFormat.WireType.Varint
             };
+            if (field.IsRepeated && expected == WireFormat.WireType.Varint && WireFormat.GetTagWireType(tag) == WireFormat.WireType.LengthDelimited)
+            {
+                byte[] packed = input.ReadBytes().ToByteArray();
+                using var values = new CodedInputStream(packed);
+                while (!values.IsAtEnd)
+                {
+                    ValidateInteger(values, packed, field);
+                }
+                continue;
+            }
             if (WireFormat.GetTagWireType(tag) != expected)
             {
                 throw new InvalidDataException("Wrong protobuf field wire type.");
@@ -76,26 +87,31 @@ public static class ProtobufMessages
             }
             else if (expected == WireFormat.WireType.Varint)
             {
-                int start = checked((int)input.Position);
-                ulong value = input.ReadUInt64();
-                if ((field.FieldType is FieldType.UInt32 or FieldType.SInt32 && value > uint.MaxValue) ||
-                    (field.FieldType == FieldType.Bool && value > 1))
-                {
-                    throw new InvalidDataException("Protobuf value exceeds scalar width.");
-                }
-                byte[] canonical = new byte[CodedOutputStream.ComputeUInt64Size(value)];
-                using var output = new CodedOutputStream(canonical);
-                output.WriteUInt64(value);
-                output.CheckNoSpaceLeft();
-                if (!bytes.AsSpan(start, checked((int)input.Position) - start).SequenceEqual(canonical))
-                {
-                    throw new InvalidDataException("Noncanonical or overflowing protobuf integer.");
-                }
+                ValidateInteger(input, bytes, field);
             }
             else
             {
                 input.SkipLastField();
             }
+        }
+    }
+
+    private static void ValidateInteger(CodedInputStream input, byte[] bytes, FieldDescriptor field)
+    {
+        int start = checked((int)input.Position);
+        ulong value = input.ReadUInt64();
+        if ((field.FieldType is FieldType.UInt32 or FieldType.SInt32 && value > uint.MaxValue) ||
+            (field.FieldType == FieldType.Bool && value > 1))
+        {
+            throw new InvalidDataException("Protobuf value exceeds scalar width.");
+        }
+        byte[] canonical = new byte[CodedOutputStream.ComputeUInt64Size(value)];
+        using var output = new CodedOutputStream(canonical);
+        output.WriteUInt64(value);
+        output.CheckNoSpaceLeft();
+        if (!bytes.AsSpan(start, checked((int)input.Position) - start).SequenceEqual(canonical))
+        {
+            throw new InvalidDataException("Noncanonical or overflowing protobuf integer.");
         }
     }
 }

@@ -11,7 +11,8 @@ if [[ "${1:-}" == --check ]]; then
   output=$(mktemp -d "${TMPDIR:-/tmp}/ark-protobuf-generated.XXXXXX")
   trap 'rm -rf "$output"' EXIT
 fi
-"$protoc_cmd" --proto_path="$repo/protocol" --csharp_out="$output" "$repo/protocol/guest_room.proto"
+"$protoc_cmd" --proto_path="$repo/protocol" --csharp_out="$output" "$repo/protocol/entity_sync.proto" "$repo/protocol/guest_room.proto"
 if [[ "${1:-}" == --check ]]; then
   cmp "$output/GuestRoom.cs" "$repo/src/Ark.Client.Core/Protocol/GuestRoom.cs"
+  cmp "$output/EntitySync.cs" "$repo/src/Ark.Client.Core/Protocol/EntitySync.cs"
 fi

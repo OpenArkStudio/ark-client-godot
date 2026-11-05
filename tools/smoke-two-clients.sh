@@ -53,6 +53,8 @@ grep -q '^SMOKE PEER ATTRIBUTES Alice ' "$logs/alice.log"
 grep -q '^SMOKE PEER ATTRIBUTES Bob ' "$logs/bob.log"
 grep -q '^SMOKE ATTRIBUTES Alice ' "$logs/alice.log"
 grep -q '^SMOKE ATTRIBUTES Bob ' "$logs/bob.log"
+grep -q '^SMOKE NESTED Alice ' "$logs/alice.log"
+grep -q '^SMOKE NESTED Bob ' "$logs/bob.log"
 if [[ "$mode" == --render ]]; then
   grep -q '^SMOKE RENDER Alice ' "$logs/alice.log"
   grep -q '^SMOKE RENDER Bob ' "$logs/bob.log"

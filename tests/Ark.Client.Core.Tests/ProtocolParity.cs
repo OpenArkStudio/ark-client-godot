@@ -25,6 +25,7 @@ internal static class ProtocolParity
         {
             foreach ((string client, string server) in new[] {
                 ("protocol/guest_room.proto", "src/proto/proto/guest_room.proto"),
+                ("protocol/entity_sync.proto", "src/proto/proto/entity_sync.proto"),
                 ("tests/fixtures/wire-vectors.json", "examples/guest_room/wire-vectors.json") })
             {
                 Program.Check(File.ReadAllBytes(Path.Combine(root, client)).SequenceEqual(File.ReadAllBytes(Path.Combine(serverRoot, server))), "Server/client protocol byte mismatch: " + client);

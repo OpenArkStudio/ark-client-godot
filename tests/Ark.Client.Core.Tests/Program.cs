@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Ark.Client.Core;
 using Ark.Client.Protocol;
+using Ark.Client.Protocol.EntitySync;
 using Ark.Client.Testing;
 using Google.Protobuf;
 
@@ -32,6 +33,14 @@ internal static class Program
                 ProtocolParity.Verify(args[1], args.ElementAtOrDefault(2));
                 return 0;
             }
+            if (args.FirstOrDefault() == "--nested-replica")
+            {
+                Test("generic nested owning atomic receiver and lifetime limits", NestedReplicaTests.Verify);
+                Test("shared C++/C# protobuf golden frames", GoldenVectors);
+                Test("whole room rejects atomically including own pending action", AtomicEnvelope);
+                Test("schema types ranges gaps generations and resurrection fail", InvalidReplica);
+                return 0;
+            }
             Test("schema generated source and shared fixture SHA parity", () => ProtocolParity.Verify(ProtocolParity.FindRoot(), null));
             Test("snake_case schema names preserve enum numbers and binary bytes", ProtocolNaming.Verify);
             Test("shared C++/C# protobuf golden frames", GoldenVectors);
@@ -39,6 +48,7 @@ internal static class Program
             Test("maximum body and malformed headers", HeaderBounds);
             Test("reconnect clears partial frame", ResetCodec);
             Test("all scalar alternatives retain widths and zero presence", ScalarBoundaries);
+            Test("generic nested owning atomic receiver and lifetime limits", NestedReplicaTests.Verify);
             Test("baseline delta add remove duplicate and fresh identity", ReplicaLifecycle);
             Test("whole room rejects atomically including own pending action", AtomicEnvelope);
             Test("schema types ranges gaps generations and resurrection fail", InvalidReplica);
@@ -85,33 +95,53 @@ internal static class Program
     internal static scalar_field Double(uint index, double value) => new() { Index = index, DoubleValue = value };
     internal static player_baseline Player(string id = "1", ulong entity = 42, string name = "Alice", ulong revision = 1)
     {
-        var state = new scalar_baseline { SchemaId = RoomSession.SchemaId, ClassName = RoomSession.ClassName, EntityId = entity, Generation = 1, Revision = revision };
-        state.Fields.Add(new scalar_field { Index = 100, StringValue = ByteString.CopyFromUtf8(name) });
-        state.Fields.Add(Double(101, 120));
-        state.Fields.Add(Double(102, 100));
-        state.Fields.Add(UInt(103, 0));
-        state.Fields.Add(UInt(104, 100));
-        state.Fields.Add(UInt(105, 100));
-        state.Fields.Add(UInt(106, 100));
-        state.Fields.Add(UInt(107, 100));
-        state.Fields.Add(UInt(108, 0));
-        return new player_baseline { PlayerId = id, State = state };
+        var root = new entity_snapshot { ClassName = RoomSession.ClassName, EntityId = (long)entity, Incarnation = 1 };
+        root.Fields.Add(new scalar_field { Index = 100, StringValue = ByteString.CopyFromUtf8(name) });
+        root.Fields.Add(Double(101, 120));
+        root.Fields.Add(Double(102, 100));
+        root.Fields.Add(UInt(103, 0));
+        root.Fields.Add(UInt(104, 100));
+        root.Fields.Add(UInt(105, 100));
+        root.Fields.Add(UInt(106, 100));
+        root.Fields.Add(UInt(107, 100));
+        root.Fields.Add(UInt(108, 0));
+        root.Tables.Add(new table_snapshot { Index = 200, ClassName = "InventoryItem", Rows = { new row_snapshot { Number = 1, Incarnation = 1, Fields = { UInt(1, 1), UInt(2, 2) } } } });
+        long firstEquipment = checked((long)entity * 2 + 10000), secondEquipment = firstEquipment + 1;
+        root.Containers.Add(new container_snapshot
+        {
+            Index = 300,
+            Slots = { new entity_slot { Slot = 1,
+            State = new entity_snapshot { EntityId = firstEquipment, Incarnation = 1, ClassName = "GuestEquipment", Fields = { UInt(1, 1001), UInt(2, 10) } } } }
+        });
+        return new player_baseline
+        {
+            PlayerId = id,
+            Binding = new player_binding { EntityId = entity, Incarnation = 1, Generation = 1, EquipmentIds = { firstEquipment, secondEquipment } },
+            State = new nested_baseline { Generation = 1, Revision = revision, Snapshot = new nested_snapshot { SchemaId = RoomSession.SchemaId, Root = root } }
+        };
     }
     private static Frame Accepted(string id = "1", ulong entity = 42) => Message(RoomSession.Accepted,
-        new join_accepted { PlayerId = id, EntityId = entity, Name = "Alice", Room = "lobby", Width = 960, Height = 540, ProtocolVersion = 1 });
+        new join_accepted { PlayerId = id, EntityId = entity, Name = "Alice", Room = "lobby", Width = 960, Height = 540, ProtocolVersion = 2 });
     private static Frame Snapshot(string id, uint seq = 0)
     {
         player_baseline player = Player(id);
-        player.State.Fields[3].Uint32Value = seq;
+        player.State.Snapshot.Root.Fields[3].Uint32Value = seq;
         return Message(RoomSession.Snapshot, new room_baseline { Room = "lobby", Players = { player } });
     }
-    internal static scalar_delta Change(ulong entity = 42, ulong required = 1, params scalar_field[] fields)
+    internal static nested_delta Change(ulong entity = 42, ulong required = 1, params scalar_field[] fields)
     {
-        var change = new scalar_delta { SchemaId = RoomSession.SchemaId, ClassName = RoomSession.ClassName, EntityId = entity, Generation = 1, RequiredRevision = required, Revision = required + 1 };
-        change.Fields.Add(fields);
+        var change = new nested_delta
+        {
+            SchemaId = RoomSession.SchemaId,
+            Generation = 1,
+            RequiredRevision = required,
+            Revision = required + 1,
+            Root = new entity_delta { EntityId = (long)entity, Incarnation = 1 }
+        };
+        change.Root.Fields.Add(fields);
         return change;
     }
-    internal static Frame Delta(params scalar_delta[] changes) => Message(RoomSession.Delta, new room_delta { Room = "lobby", Changed = { changes } });
+    internal static Frame Delta(params nested_delta[] changes) => Message(RoomSession.Delta, new room_delta { Room = "lobby", Changed = { changes } });
     private static RoomSession Joined(params player_baseline[] peers)
     {
         var room = new RoomSession();
@@ -124,7 +154,7 @@ internal static class Program
     private static void GoldenVectors()
     {
         using JsonDocument fixture = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "wire-vectors.json")));
-        Check(fixture.RootElement.GetProperty("format").GetString() == "ark.guest-room.protobuf-v1", "Unexpected shared format.");
+        Check(fixture.RootElement.GetProperty("format").GetString() == "ark.guest-room.protobuf", "Unexpected shared format.");
         foreach (JsonElement vector in fixture.RootElement.GetProperty("vectors").EnumerateArray())
         {
             ushort id = vector.GetProperty("message_id").GetUInt16();
@@ -154,7 +184,32 @@ internal static class Program
             Check(field.Index == 100 && field.ValueCase != scalar_field.ValueOneofCase.None && field.ToByteArray().SequenceEqual(body),
                 "Shared scalar boundary mismatch: " + vector.GetProperty("name"));
         }
-        Check(Decode(RoomSession.JoinFrame("Alice")).Body.SequenceEqual(new join_request { Name = "Alice", Room = "lobby", ProtocolVersion = 1 }.ToByteArray()), "Join version missing.");
+        NestedGoldenVectors(fixture.RootElement);
+        Check(Decode(RoomSession.JoinFrame("Alice")).Body.SequenceEqual(new join_request { Name = "Alice", Room = "lobby", ProtocolVersion = 2 }.ToByteArray()), "Join version missing.");
+    }
+    private static void NestedGoldenVectors(JsonElement fixture)
+    {
+        var frames = fixture.GetProperty("vectors").EnumerateArray().ToDictionary(vector => vector.GetProperty("name").GetString()!,
+            vector => new Frame(vector.GetProperty("message_id").GetUInt16(), Convert.FromHexString(vector.GetProperty("body_hex").GetString()!)));
+        var room = new RoomSession();
+        room.Apply(frames["accepted_alice"]);
+        room.Apply(frames["baseline_alice"]);
+        PlayerState retained = room.Players.Single();
+        foreach (string name in new[] { "delta_potion", "delta_inventory_remove", "delta_inventory_reuse", "delta_equipment", "delta_equipment_power" })
+        {
+            room.Apply(frames[name]);
+        }
+        PlayerState current = room.Players.Single();
+        Check(current.Inventory.Single() is { Row: 1, Incarnation: 2, ItemId: 1, Quantity: 1 } && current.Equipment.Single() is { EntityId: 44, Incarnation: 9, ItemId: 1002, Power: 21 } &&
+            retained.Inventory.Single().Quantity == 2 && retained.Equipment.Single().Power == 10 && room.BaselineCount == 1 && room.DeltaCount == 5,
+            "Shared nested row lifecycle or equipment replacement/patch diverged.");
+        var baseline = room_baseline.Parser.ParseFrom(frames["baseline_alice"].Body).Players.Single();
+        var receiver = new NestedReplica(RoomSession.PlayerBinding((long)baseline.Binding.EntityId, baseline.Binding.Incarnation,
+            baseline.Binding.Generation, baseline.Binding.EquipmentIds.ToArray()), RoomSession.EntityLimits);
+        Check(receiver.Apply(NestedProtobuf.Decode(baseline.State)) == NestedApplyResult.Applied &&
+            receiver.Apply(NestedProtobuf.Decode(room_delta.Parser.ParseFrom(frames["delta_hp"].Body).Changed.Single())) == NestedApplyResult.Applied &&
+            receiver.Apply(NestedProtobuf.Decode(room_delta.Parser.ParseFrom(frames["removed"].Body).Changed.Single())) == NestedApplyResult.Applied && receiver.Valid && receiver.State is null,
+            "Shared generic tombstone sequence diverged.");
     }
     private static void HeaderBounds()
     {
@@ -168,7 +223,7 @@ internal static class Program
         for (ulong id = 1; id <= 16; id++)
         {
             player_baseline player = Player(id.ToString(), id, new string('"', 64));
-            foreach (scalar_field field in player.State.Fields.Where(field => field.Index >= 103))
+            foreach (scalar_field field in player.State.Snapshot.Root.Fields.Where(field => field.Index >= 103))
             {
                 field.Uint32Value = uint.MaxValue;
             }
@@ -226,11 +281,11 @@ internal static class Program
         Check(move_request.Parser.ParseFrom(Decode(move).Body).Sequence == 1 && room.Players.Single().X == 120, "Proposal changed authority.");
         var addition = new room_delta { Room = "lobby", Added = { Player("2", 43, "Bob") } };
         room.Apply(Message(RoomSession.Delta, addition));
-        scalar_delta change = Change(42, 1, Double(101, 150), Double(102, 160), UInt(103, 1));
+        nested_delta change = Change(42, 1, Double(101, 150), Double(102, 160), UInt(103, 1));
         room.Apply(Delta(change));
         room.Apply(Delta(change));
         Check(room.Players.Count == 2 && room.Players[0].X == 150 && room.BaselineCount == 1 && room.DeltaCount == 3, "Incremental/duplicate update failed.");
-        scalar_delta removed = Change(43);
+        nested_delta removed = Change(43);
         removed.Removed = true;
         room.Apply(Delta(removed));
         room.Apply(Delta(removed));
@@ -247,11 +302,11 @@ internal static class Program
         var room = Joined(Player("2", 43, "Bob"));
         room.ActionFrame("damage");
         IReadOnlyList<PlayerState> previous = room.Players;
-        scalar_delta own = Change(42, 1, UInt(104, 85), UInt(108, 1));
-        scalar_delta badPeer = Change(43, 1, UInt(104, 101));
+        nested_delta own = Change(42, 1, UInt(104, 85), UInt(108, 1));
+        nested_delta badPeer = Change(43, 1, UInt(104, 101));
         Reject(() => room.Apply(Delta(own, badPeer)));
         Check(ReferenceEquals(room.Players, previous) && room.PendingAction?.Sequence == 1 && room.DeltaCount == 0, "Invalid peer partially committed own action.");
-        scalar_delta zeroRequired = Change(43, 0, UInt(104, 90));
+        nested_delta zeroRequired = Change(43, 0, UInt(104, 90));
         Reject(() => room.Apply(Delta(own, zeroRequired)));
         Check(ReferenceEquals(room.Players, previous) && room.PendingAction?.Sequence == 1 && room.DeltaCount == 0,
             "Zero required revision partially committed an own action.");
@@ -259,6 +314,21 @@ internal static class Program
         Reject(() => room.Apply(Message(RoomSession.Delta, zeroBaseline)));
         Check(ReferenceEquals(room.Players, previous) && room.PendingAction?.Sequence == 1 && room.DeltaCount == 0,
             "Zero baseline revision partially committed room state.");
+        nested_delta nestedOwn = Change(42, 1, UInt(108, 1));
+        nestedOwn.Root.Tables.Add(new table_delta { Index = 200, Rows = { new row_delta { Number = 1, RequiredIncarnation = 1, Incarnation = 1, Fields = { UInt(2, 1) } } } });
+        nested_delta nestedPeer = Change(43, 1, UInt(108, 1));
+        nestedPeer.Root.Containers.Add(new container_delta
+        {
+            Index = 300,
+            Patch = new container_patch
+            {
+                Changed = {
+            new entity_change { Slot = 1, Change = new entity_delta { EntityId = 10086, Incarnation = 99, Fields = { UInt(2, 11) } } } }
+            }
+        });
+        Reject(() => room.Apply(Delta(nestedOwn, nestedPeer)));
+        Check(ReferenceEquals(room.Players, previous) && room.Players[0].Inventory.Single().Quantity == 2 && room.PendingAction?.Sequence == 1 && room.DeltaCount == 0,
+            "Invalid peer child partially committed an own nested row/action or its receiver history.");
         room.Apply(Delta(own));
         Check(room.PendingAction is null && room.Players[0].Hp == 85, "Atomic failure consumed the revision.");
         var wrongOwn = new RoomSession();
@@ -270,19 +340,22 @@ internal static class Program
     }
     private static void InvalidReplica()
     {
-        foreach (System.Action<scalar_baseline> corrupt in new System.Action<scalar_baseline>[] {
-            state => state.SchemaId = "unknown", state => state.ClassName = "guestplayer", state => state.Generation = 0,
-            state => state.EntityId = 0, state => state.EntityId = ulong.MaxValue, state => state.Revision = 0,
-            state => state.Fields.RemoveAt(8), state => state.Fields.Add(state.Fields[0].Clone()),
-            state => state.Fields[0].StringValue = ByteString.CopyFrom(new byte[] { 255 }),
-            state => state.Fields[0].StringValue = ByteString.CopyFromUtf8(new string('a', 65)),
-            state => state.Fields[0].StringValue = ByteString.CopyFromUtf8("A\n"),
-            state => state.Fields[1].DoubleValue = double.NaN, state => state.Fields[1].DoubleValue = double.PositiveInfinity,
-            state => state.Fields[1].DoubleValue = -1, state => state.Fields[2].DoubleValue = 541,
-            state => state.Fields[4].Uint32Value = 101, state => state.Fields[6].Uint32Value = 0,
-            state => state.Fields[5].Uint32Value = 101, state => state.Fields[7].Uint32Value = 0,
-            state => state.Fields[0].Index = 99, state => state.Fields[1].FloatValue = 120,
-            state => state.Fields[4].Int32Value = 100, state => state.Fields[0].ClearValue()
+        foreach (System.Action<nested_baseline> corrupt in new System.Action<nested_baseline>[] {
+            state => state.Snapshot.SchemaId = "unknown", state => state.Snapshot.Root.ClassName = "guestplayer", state => state.Generation = 0,
+            state => state.Snapshot.Root.EntityId = 0, state => state.Snapshot.Root.EntityId = -1, state => state.Revision = 0,
+            state => state.Snapshot.Root.Fields.RemoveAt(8), state => state.Snapshot.Root.Fields.Add(state.Snapshot.Root.Fields[0].Clone()),
+            state => state.Snapshot.Root.Fields[0].StringValue = ByteString.CopyFrom(new byte[] { 255 }),
+            state => state.Snapshot.Root.Fields[0].StringValue = ByteString.CopyFromUtf8(new string('a', 65)),
+            state => state.Snapshot.Root.Fields[0].StringValue = ByteString.CopyFromUtf8("A\n"),
+            state => state.Snapshot.Root.Fields[1].DoubleValue = double.NaN, state => state.Snapshot.Root.Fields[1].DoubleValue = double.PositiveInfinity,
+            state => state.Snapshot.Root.Fields[1].DoubleValue = -1, state => state.Snapshot.Root.Fields[2].DoubleValue = 541,
+            state => state.Snapshot.Root.Fields[4].Uint32Value = 101, state => state.Snapshot.Root.Fields[6].Uint32Value = 0,
+            state => state.Snapshot.Root.Fields[5].Uint32Value = 101, state => state.Snapshot.Root.Fields[7].Uint32Value = 0,
+            state => state.Snapshot.Root.Fields[0].Index = 99, state => state.Snapshot.Root.Fields[1].FloatValue = 120,
+            state => state.Snapshot.Root.Fields[4].Int32Value = 100, state => state.Snapshot.Root.Fields[0].ClearValue(),
+            state => state.Snapshot.Root.Tables.Clear(), state => state.Snapshot.Root.Containers.Clear(),
+            state => state.Snapshot.Root.Tables[0].Rows[0].Fields[1].Uint32Value = 0,
+            state => state.Snapshot.Root.Containers[0].Slots[0].State.Fields[0].Uint32Value = 1002
         })
         {
             var room = new RoomSession();
@@ -292,16 +365,16 @@ internal static class Program
             Reject(() => room.Apply(Message(RoomSession.Snapshot, new room_baseline { Room = "lobby", Players = { player } })));
             Check(!room.HasSnapshot, "Malformed baseline committed.");
         }
-        foreach (System.Action<scalar_delta> corrupt in new System.Action<scalar_delta>[] {
+        foreach (System.Action<nested_delta> corrupt in new System.Action<nested_delta>[] {
             change => change.Generation = 0, change => change.Generation = 2, change => change.RequiredRevision = 0,
             change => { change.RequiredRevision = 0; change.Revision = 1; },
-            change => change.RequiredRevision = 2, change => change.Revision = 3, change => change.EntityId = 99,
-            change => change.SchemaId = "unknown", change => change.ClassName = "other", change => change.Fields.Clear(),
-            change => change.Removed = true, change => change.Fields.Add(change.Fields[0].Clone())
+            change => change.RequiredRevision = 2, change => change.Revision = 3, change => change.Root.EntityId = 99,
+            change => change.SchemaId = "unknown", change => change.Root.Incarnation = 2, change => change.Root.Fields.Clear(),
+            change => change.Removed = true, change => change.Root.Fields.Add(change.Root.Fields[0].Clone())
         })
         {
             var room = Joined();
-            scalar_delta change = Change(42, 1, UInt(104, 85));
+            nested_delta change = Change(42, 1, UInt(104, 85));
             corrupt(change);
             Reject(() => room.Apply(Delta(change)));
             Check(room.Players.Single().Hp == 100, "Invalid delta committed.");
@@ -309,7 +382,7 @@ internal static class Program
         var joined = Joined();
         joined.Apply(Delta(Change(42, 1, UInt(103, 5))));
         Reject(() => joined.Apply(Delta(Change(42, 2, UInt(103, 4)))));
-        scalar_delta ownRemoval = Change(42, 2);
+        nested_delta ownRemoval = Change(42, 2);
         ownRemoval.Removed = true;
         Reject(() => joined.Apply(Delta(ownRemoval)));
         Reject(() => joined.Apply(Delta(Change(42, 2, UInt(104, 90)), Change(42, 2, UInt(105, 90)))));
@@ -318,6 +391,19 @@ internal static class Program
         duplicateId.Apply(Accepted());
         Reject(() => duplicateId.Apply(Message(RoomSession.Snapshot, new room_baseline { Room = "lobby", Players = { Player(), Player("1", 43) } })));
         Reject(() => joined.Apply(new Frame(60007, Array.Empty<byte>())));
+        foreach (System.Action<player_binding> corrupt in new System.Action<player_binding>[] {
+            binding => binding.EntityId = 0, binding => binding.Incarnation = 0, binding => binding.Generation = 0,
+            binding => binding.EquipmentIds.Clear(), binding => binding.EquipmentIds.Add(999), binding => binding.EquipmentIds[0] = 0,
+            binding => binding.EquipmentIds[0] = 42, binding => binding.EquipmentIds[0] = binding.EquipmentIds[1]
+        })
+        {
+            var room = new RoomSession();
+            room.Apply(Accepted());
+            var player = Player();
+            corrupt(player.Binding);
+            Reject(() => room.Apply(Message(RoomSession.Snapshot, new room_baseline { Room = "lobby", Players = { player } })));
+            Check(!room.HasSnapshot && room.Players.Count == 0, "Invalid application binding installed remote layout/state.");
+        }
     }
     private static void InvalidEncoding()
     {
@@ -339,12 +425,13 @@ internal static class Program
         Reject(() => fresh.Apply(new Frame(RoomSession.Accepted, new byte[] { 0x0a, 1, 0xff })));
         Reject(() => ProtobufMessages.Parse(new byte[] { 0x10, 2 }, scalar_field.Parser, scalar_field.Descriptor));
         Reject(() => ProtobufMessages.Parse(new byte[] { 0x30 }.Concat(Enumerable.Repeat((byte)0xff, 9)).Append((byte)3).ToArray(), scalar_field.Parser, scalar_field.Descriptor));
+        Reject(() => ProtobufMessages.Parse(new byte[] { 0x22, 2, 0x82, 0 }, player_binding.Parser, player_binding.Descriptor));
         // Unknown protobuf fields remain forward compatible.
         fresh.Apply(new Frame(RoomSession.Accepted, accepted.Concat(new byte[] { 0xa0, 0x06, 1 }).ToArray()));
         fresh.Apply(Snapshot("1"));
         Check(fresh.HasSnapshot, "Unknown field blocked forward-compatible encoding.");
         var badVersion = join_accepted.Parser.ParseFrom(accepted);
-        badVersion.ProtocolVersion = 2;
+        badVersion.ProtocolVersion = 1;
         Reject(() => new RoomSession().Apply(Message(RoomSession.Accepted, badVersion)));
     }
     private static void ActionCorrelation()

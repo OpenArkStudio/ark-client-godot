@@ -24,44 +24,36 @@ namespace Ark.Client.Protocol {
     static GuestRoomReflection() {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
-            "ChBndWVzdF9yb29tLnByb3RvEhdhcmsucHJvdG9idWYuZ3Vlc3Rfcm9vbSJE",
-            "Cgxqb2luX3JlcXVlc3QSDAoEbmFtZRgBIAEoCRIMCgRyb29tGAIgASgJEhgK",
-            "EHByb3RvY29sX3ZlcnNpb24YAyABKA0iigEKDWpvaW5fYWNjZXB0ZWQSEQoJ",
-            "cGxheWVyX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSDAoEcm9vbRgDIAEoCRIN",
-            "CgV3aWR0aBgEIAEoDRIOCgZoZWlnaHQYBSABKA0SEQoJZW50aXR5X2lkGAYg",
-            "ASgEEhgKEHByb3RvY29sX3ZlcnNpb24YByABKA0iNgoMbW92ZV9yZXF1ZXN0",
-            "EhAKCHNlcXVlbmNlGAEgASgNEgkKAXgYAiABKAESCQoBeRgDIAEoASJWCg5h",
-            "Y3Rpb25fcmVxdWVzdBIQCghzZXF1ZW5jZRgBIAEoDRIyCgRraW5kGAIgASgO",
-            "MiQuYXJrLnByb3RvYnVmLmd1ZXN0X3Jvb20uYWN0aW9uX2tpbmQiYQoOZXJy",
-            "b3JfcmVzcG9uc2USDAoEY29kZRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEhwK",
-            "D2FjdGlvbl9zZXF1ZW5jZRgDIAEoDUgAiAEBQhIKEF9hY3Rpb25fc2VxdWVu",
-            "Y2UiGgoJaGVhcnRiZWF0Eg0KBW5vbmNlGAEgASgNIvcBCgxzY2FsYXJfZmll",
-            "bGQSDQoFaW5kZXgYASABKA0SFAoKYm9vbF92YWx1ZRgCIAEoCEgAEhUKC2lu",
-            "dDMyX3ZhbHVlGAMgASgRSAASFgoMdWludDMyX3ZhbHVlGAQgASgNSAASFQoL",
-            "aW50NjRfdmFsdWUYBSABKBJIABIWCgx1aW50NjRfdmFsdWUYBiABKARIABIV",
-            "CgtmbG9hdF92YWx1ZRgHIAEoAkgAEhYKDGRvdWJsZV92YWx1ZRgIIAEoAUgA",
-            "EhYKDHN0cmluZ192YWx1ZRgJIAEoDEgAEhQKCmd1aWRfdmFsdWUYCiABKBJI",
-            "AEIHCgV2YWx1ZSKoAQoPc2NhbGFyX2Jhc2VsaW5lEhEKCXNjaGVtYV9pZBgB",
-            "IAEoCRISCgpnZW5lcmF0aW9uGAIgASgEEhAKCHJldmlzaW9uGAMgASgEEhEK",
-            "CWVudGl0eV9pZBgEIAEoBBISCgpjbGFzc19uYW1lGAUgASgJEjUKBmZpZWxk",
-            "cxgGIAMoCzIlLmFyay5wcm90b2J1Zi5ndWVzdF9yb29tLnNjYWxhcl9maWVs",
-            "ZCLRAQoMc2NhbGFyX2RlbHRhEhEKCXNjaGVtYV9pZBgBIAEoCRISCgpnZW5l",
-            "cmF0aW9uGAIgASgEEhkKEXJlcXVpcmVkX3JldmlzaW9uGAMgASgEEhAKCHJl",
-            "dmlzaW9uGAQgASgEEhEKCWVudGl0eV9pZBgFIAEoBBISCgpjbGFzc19uYW1l",
-            "GAYgASgJEjUKBmZpZWxkcxgHIAMoCzIlLmFyay5wcm90b2J1Zi5ndWVzdF9y",
-            "b29tLnNjYWxhcl9maWVsZBIPCgdyZW1vdmVkGAggASgIIl0KD3BsYXllcl9i",
-            "YXNlbGluZRIRCglwbGF5ZXJfaWQYASABKAkSNwoFc3RhdGUYAiABKAsyKC5h",
-            "cmsucHJvdG9idWYuZ3Vlc3Rfcm9vbS5zY2FsYXJfYmFzZWxpbmUiWAoNcm9v",
-            "bV9iYXNlbGluZRIMCgRyb29tGAEgASgJEjkKB3BsYXllcnMYAiADKAsyKC5h",
-            "cmsucHJvdG9idWYuZ3Vlc3Rfcm9vbS5wbGF5ZXJfYmFzZWxpbmUiiwEKCnJv",
-            "b21fZGVsdGESDAoEcm9vbRgBIAEoCRI3CgVhZGRlZBgCIAMoCzIoLmFyay5w",
-            "cm90b2J1Zi5ndWVzdF9yb29tLnBsYXllcl9iYXNlbGluZRI2CgdjaGFuZ2Vk",
-            "GAMgAygLMiUuYXJrLnByb3RvYnVmLmd1ZXN0X3Jvb20uc2NhbGFyX2RlbHRh",
-            "KlsKC2FjdGlvbl9raW5kEhYKEmFjdGlvbl91bnNwZWNpZmllZBAAEhEKDWFj",
-            "dGlvbl9kYW1hZ2UQARIQCgxhY3Rpb25fc2tpbGwQAhIPCgthY3Rpb25fcmVz",
-            "dBADQhaqAhNBcmsuQ2xpZW50LlByb3RvY29sYgZwcm90bzM="));
+            "ChBndWVzdF9yb29tLnByb3RvEhdhcmsucHJvdG9idWYuZ3Vlc3Rfcm9vbRoR",
+            "ZW50aXR5X3N5bmMucHJvdG8iRAoMam9pbl9yZXF1ZXN0EgwKBG5hbWUYASAB",
+            "KAkSDAoEcm9vbRgCIAEoCRIYChBwcm90b2NvbF92ZXJzaW9uGAMgASgNIooB",
+            "Cg1qb2luX2FjY2VwdGVkEhEKCXBsYXllcl9pZBgBIAEoCRIMCgRuYW1lGAIg",
+            "ASgJEgwKBHJvb20YAyABKAkSDQoFd2lkdGgYBCABKA0SDgoGaGVpZ2h0GAUg",
+            "ASgNEhEKCWVudGl0eV9pZBgGIAEoBBIYChBwcm90b2NvbF92ZXJzaW9uGAcg",
+            "ASgNIjYKDG1vdmVfcmVxdWVzdBIQCghzZXF1ZW5jZRgBIAEoDRIJCgF4GAIg",
+            "ASgBEgkKAXkYAyABKAEiVgoOYWN0aW9uX3JlcXVlc3QSEAoIc2VxdWVuY2UY",
+            "ASABKA0SMgoEa2luZBgCIAEoDjIkLmFyay5wcm90b2J1Zi5ndWVzdF9yb29t",
+            "LmFjdGlvbl9raW5kImEKDmVycm9yX3Jlc3BvbnNlEgwKBGNvZGUYASABKAkS",
+            "DwoHbWVzc2FnZRgCIAEoCRIcCg9hY3Rpb25fc2VxdWVuY2UYAyABKA1IAIgB",
+            "AUISChBfYWN0aW9uX3NlcXVlbmNlIhoKCWhlYXJ0YmVhdBINCgVub25jZRgB",
+            "IAEoDSJjCg5wbGF5ZXJfYmluZGluZxIRCgllbnRpdHlfaWQYASABKAQSEwoL",
+            "aW5jYXJuYXRpb24YAiABKAQSEgoKZ2VuZXJhdGlvbhgDIAEoBBIVCg1lcXVp",
+            "cG1lbnRfaWRzGAQgAygSIpgBCg9wbGF5ZXJfYmFzZWxpbmUSEQoJcGxheWVy",
+            "X2lkGAEgASgJEjgKBXN0YXRlGAIgASgLMikuYXJrLnByb3RvYnVmLmVudGl0",
+            "eV9zeW5jLm5lc3RlZF9iYXNlbGluZRI4CgdiaW5kaW5nGAMgASgLMicuYXJr",
+            "LnByb3RvYnVmLmd1ZXN0X3Jvb20ucGxheWVyX2JpbmRpbmciWAoNcm9vbV9i",
+            "YXNlbGluZRIMCgRyb29tGAEgASgJEjkKB3BsYXllcnMYAiADKAsyKC5hcmsu",
+            "cHJvdG9idWYuZ3Vlc3Rfcm9vbS5wbGF5ZXJfYmFzZWxpbmUijAEKCnJvb21f",
+            "ZGVsdGESDAoEcm9vbRgBIAEoCRI3CgVhZGRlZBgCIAMoCzIoLmFyay5wcm90",
+            "b2J1Zi5ndWVzdF9yb29tLnBsYXllcl9iYXNlbGluZRI3CgdjaGFuZ2VkGAMg",
+            "AygLMiYuYXJrLnByb3RvYnVmLmVudGl0eV9zeW5jLm5lc3RlZF9kZWx0YSqr",
+            "AQoLYWN0aW9uX2tpbmQSFgoSYWN0aW9uX3Vuc3BlY2lmaWVkEAASEQoNYWN0",
+            "aW9uX2RhbWFnZRABEhAKDGFjdGlvbl9za2lsbBACEg8KC2FjdGlvbl9yZXN0",
+            "EAMSEQoNYWN0aW9uX3BpY2t1cBAEEhUKEWFjdGlvbl91c2VfcG90aW9uEAUS",
+            "EAoMYWN0aW9uX2VxdWlwEAYSEgoOYWN0aW9uX3VwZ3JhZGUQB0IWqgITQXJr",
+            "LkNsaWVudC5Qcm90b2NvbGIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
-          new pbr::FileDescriptor[] { },
+          new pbr::FileDescriptor[] { global::Ark.Client.Protocol.EntitySync.EntitySyncReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::Ark.Client.Protocol.action_kind), }, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::Ark.Client.Protocol.join_request), global::Ark.Client.Protocol.join_request.Parser, new[]{ "Name", "Room", "ProtocolVersion" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Ark.Client.Protocol.join_accepted), global::Ark.Client.Protocol.join_accepted.Parser, new[]{ "PlayerId", "Name", "Room", "Width", "Height", "EntityId", "ProtocolVersion" }, null, null, null, null),
@@ -69,10 +61,8 @@ namespace Ark.Client.Protocol {
             new pbr::GeneratedClrTypeInfo(typeof(global::Ark.Client.Protocol.action_request), global::Ark.Client.Protocol.action_request.Parser, new[]{ "Sequence", "Kind" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Ark.Client.Protocol.error_response), global::Ark.Client.Protocol.error_response.Parser, new[]{ "Code", "Message", "ActionSequence" }, new[]{ "ActionSequence" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Ark.Client.Protocol.heartbeat), global::Ark.Client.Protocol.heartbeat.Parser, new[]{ "Nonce" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Ark.Client.Protocol.scalar_field), global::Ark.Client.Protocol.scalar_field.Parser, new[]{ "Index", "BoolValue", "Int32Value", "Uint32Value", "Int64Value", "Uint64Value", "FloatValue", "DoubleValue", "StringValue", "GuidValue" }, new[]{ "Value" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Ark.Client.Protocol.scalar_baseline), global::Ark.Client.Protocol.scalar_baseline.Parser, new[]{ "SchemaId", "Generation", "Revision", "EntityId", "ClassName", "Fields" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Ark.Client.Protocol.scalar_delta), global::Ark.Client.Protocol.scalar_delta.Parser, new[]{ "SchemaId", "Generation", "RequiredRevision", "Revision", "EntityId", "ClassName", "Fields", "Removed" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Ark.Client.Protocol.player_baseline), global::Ark.Client.Protocol.player_baseline.Parser, new[]{ "PlayerId", "State" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Ark.Client.Protocol.player_binding), global::Ark.Client.Protocol.player_binding.Parser, new[]{ "EntityId", "Incarnation", "Generation", "EquipmentIds" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Ark.Client.Protocol.player_baseline), global::Ark.Client.Protocol.player_baseline.Parser, new[]{ "PlayerId", "State", "Binding" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Ark.Client.Protocol.room_baseline), global::Ark.Client.Protocol.room_baseline.Parser, new[]{ "Room", "Players" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Ark.Client.Protocol.room_delta), global::Ark.Client.Protocol.room_delta.Parser, new[]{ "Room", "Added", "Changed" }, null, null, null, null)
           }));
@@ -86,6 +76,10 @@ namespace Ark.Client.Protocol {
     [pbr::OriginalName("action_damage")] ActionDamage = 1,
     [pbr::OriginalName("action_skill")] ActionSkill = 2,
     [pbr::OriginalName("action_rest")] ActionRest = 3,
+    [pbr::OriginalName("action_pickup")] ActionPickup = 4,
+    [pbr::OriginalName("action_use_potion")] ActionUsePotion = 5,
+    [pbr::OriginalName("action_equip")] ActionEquip = 6,
+    [pbr::OriginalName("action_upgrade")] ActionUpgrade = 7,
   }
 
   #endregion
@@ -1781,21 +1775,21 @@ namespace Ark.Client.Protocol {
   }
 
   /// <summary>
-  /// Explicit alternatives preserve scalar width, signedness and zero-value
-  /// presence. string_value carries bytes; a presentation layer must validate its
-  /// own UTF-8 rules.
+  /// Application-owned instance bindings are separate from untrusted state values.
+  /// The field/type projection is fixed by the sample on both sides, not supplied
+  /// by this message. The two declared equipment identities remain fixed per stream.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class scalar_field : pb::IMessage<scalar_field>
+  public sealed partial class player_binding : pb::IMessage<player_binding>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       , pb::IBufferMessage
   #endif
   {
-    private static readonly pb::MessageParser<scalar_field> _parser = new pb::MessageParser<scalar_field>(() => new scalar_field());
+    private static readonly pb::MessageParser<player_binding> _parser = new pb::MessageParser<player_binding>(() => new player_binding());
     private pb::UnknownFieldSet _unknownFields;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<scalar_field> Parser { get { return _parser; } }
+    public static pb::MessageParser<player_binding> Parser { get { return _parser; } }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -1811,7 +1805,7 @@ namespace Ark.Client.Protocol {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public scalar_field() {
+    public player_binding() {
       OnConstruction();
     }
 
@@ -1819,347 +1813,86 @@ namespace Ark.Client.Protocol {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public scalar_field(scalar_field other) : this() {
-      index_ = other.index_;
-      switch (other.ValueCase) {
-        case ValueOneofCase.BoolValue:
-          BoolValue = other.BoolValue;
-          break;
-        case ValueOneofCase.Int32Value:
-          Int32Value = other.Int32Value;
-          break;
-        case ValueOneofCase.Uint32Value:
-          Uint32Value = other.Uint32Value;
-          break;
-        case ValueOneofCase.Int64Value:
-          Int64Value = other.Int64Value;
-          break;
-        case ValueOneofCase.Uint64Value:
-          Uint64Value = other.Uint64Value;
-          break;
-        case ValueOneofCase.FloatValue:
-          FloatValue = other.FloatValue;
-          break;
-        case ValueOneofCase.DoubleValue:
-          DoubleValue = other.DoubleValue;
-          break;
-        case ValueOneofCase.StringValue:
-          StringValue = other.StringValue;
-          break;
-        case ValueOneofCase.GuidValue:
-          GuidValue = other.GuidValue;
-          break;
-      }
-
+    public player_binding(player_binding other) : this() {
+      entityId_ = other.entityId_;
+      incarnation_ = other.incarnation_;
+      generation_ = other.generation_;
+      equipmentIds_ = other.equipmentIds_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public scalar_field Clone() {
-      return new scalar_field(this);
+    public player_binding Clone() {
+      return new player_binding(this);
     }
 
-    /// <summary>Field number for the "index" field.</summary>
-    public const int IndexFieldNumber = 1;
-    private uint index_;
+    /// <summary>Field number for the "entity_id" field.</summary>
+    public const int EntityIdFieldNumber = 1;
+    private ulong entityId_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public uint Index {
-      get { return index_; }
+    public ulong EntityId {
+      get { return entityId_; }
       set {
-        index_ = value;
+        entityId_ = value;
       }
     }
 
-    /// <summary>Field number for the "bool_value" field.</summary>
-    public const int BoolValueFieldNumber = 2;
+    /// <summary>Field number for the "incarnation" field.</summary>
+    public const int IncarnationFieldNumber = 2;
+    private ulong incarnation_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool BoolValue {
-      get { return HasBoolValue ? (bool) value_ : false; }
+    public ulong Incarnation {
+      get { return incarnation_; }
       set {
-        value_ = value;
-        valueCase_ = ValueOneofCase.BoolValue;
-      }
-    }
-    /// <summary>Gets whether the "bool_value" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasBoolValue {
-      get { return valueCase_ == ValueOneofCase.BoolValue; }
-    }
-    /// <summary> Clears the value of the oneof if it's currently set to "bool_value" </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearBoolValue() {
-      if (HasBoolValue) {
-        ClearValue();
+        incarnation_ = value;
       }
     }
 
-    /// <summary>Field number for the "int32_value" field.</summary>
-    public const int Int32ValueFieldNumber = 3;
+    /// <summary>Field number for the "generation" field.</summary>
+    public const int GenerationFieldNumber = 3;
+    private ulong generation_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public int Int32Value {
-      get { return HasInt32Value ? (int) value_ : 0; }
+    public ulong Generation {
+      get { return generation_; }
       set {
-        value_ = value;
-        valueCase_ = ValueOneofCase.Int32Value;
-      }
-    }
-    /// <summary>Gets whether the "int32_value" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasInt32Value {
-      get { return valueCase_ == ValueOneofCase.Int32Value; }
-    }
-    /// <summary> Clears the value of the oneof if it's currently set to "int32_value" </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearInt32Value() {
-      if (HasInt32Value) {
-        ClearValue();
+        generation_ = value;
       }
     }
 
-    /// <summary>Field number for the "uint32_value" field.</summary>
-    public const int Uint32ValueFieldNumber = 4;
+    /// <summary>Field number for the "equipment_ids" field.</summary>
+    public const int EquipmentIdsFieldNumber = 4;
+    private static readonly pb::FieldCodec<long> _repeated_equipmentIds_codec
+        = pb::FieldCodec.ForSInt64(34);
+    private readonly pbc::RepeatedField<long> equipmentIds_ = new pbc::RepeatedField<long>();
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public uint Uint32Value {
-      get { return HasUint32Value ? (uint) value_ : 0; }
-      set {
-        value_ = value;
-        valueCase_ = ValueOneofCase.Uint32Value;
-      }
-    }
-    /// <summary>Gets whether the "uint32_value" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasUint32Value {
-      get { return valueCase_ == ValueOneofCase.Uint32Value; }
-    }
-    /// <summary> Clears the value of the oneof if it's currently set to "uint32_value" </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearUint32Value() {
-      if (HasUint32Value) {
-        ClearValue();
-      }
-    }
-
-    /// <summary>Field number for the "int64_value" field.</summary>
-    public const int Int64ValueFieldNumber = 5;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public long Int64Value {
-      get { return HasInt64Value ? (long) value_ : 0L; }
-      set {
-        value_ = value;
-        valueCase_ = ValueOneofCase.Int64Value;
-      }
-    }
-    /// <summary>Gets whether the "int64_value" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasInt64Value {
-      get { return valueCase_ == ValueOneofCase.Int64Value; }
-    }
-    /// <summary> Clears the value of the oneof if it's currently set to "int64_value" </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearInt64Value() {
-      if (HasInt64Value) {
-        ClearValue();
-      }
-    }
-
-    /// <summary>Field number for the "uint64_value" field.</summary>
-    public const int Uint64ValueFieldNumber = 6;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public ulong Uint64Value {
-      get { return HasUint64Value ? (ulong) value_ : 0UL; }
-      set {
-        value_ = value;
-        valueCase_ = ValueOneofCase.Uint64Value;
-      }
-    }
-    /// <summary>Gets whether the "uint64_value" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasUint64Value {
-      get { return valueCase_ == ValueOneofCase.Uint64Value; }
-    }
-    /// <summary> Clears the value of the oneof if it's currently set to "uint64_value" </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearUint64Value() {
-      if (HasUint64Value) {
-        ClearValue();
-      }
-    }
-
-    /// <summary>Field number for the "float_value" field.</summary>
-    public const int FloatValueFieldNumber = 7;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public float FloatValue {
-      get { return HasFloatValue ? (float) value_ : 0F; }
-      set {
-        value_ = value;
-        valueCase_ = ValueOneofCase.FloatValue;
-      }
-    }
-    /// <summary>Gets whether the "float_value" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasFloatValue {
-      get { return valueCase_ == ValueOneofCase.FloatValue; }
-    }
-    /// <summary> Clears the value of the oneof if it's currently set to "float_value" </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearFloatValue() {
-      if (HasFloatValue) {
-        ClearValue();
-      }
-    }
-
-    /// <summary>Field number for the "double_value" field.</summary>
-    public const int DoubleValueFieldNumber = 8;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public double DoubleValue {
-      get { return HasDoubleValue ? (double) value_ : 0D; }
-      set {
-        value_ = value;
-        valueCase_ = ValueOneofCase.DoubleValue;
-      }
-    }
-    /// <summary>Gets whether the "double_value" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasDoubleValue {
-      get { return valueCase_ == ValueOneofCase.DoubleValue; }
-    }
-    /// <summary> Clears the value of the oneof if it's currently set to "double_value" </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearDoubleValue() {
-      if (HasDoubleValue) {
-        ClearValue();
-      }
-    }
-
-    /// <summary>Field number for the "string_value" field.</summary>
-    public const int StringValueFieldNumber = 9;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pb::ByteString StringValue {
-      get { return HasStringValue ? (pb::ByteString) value_ : pb::ByteString.Empty; }
-      set {
-        value_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-        valueCase_ = ValueOneofCase.StringValue;
-      }
-    }
-    /// <summary>Gets whether the "string_value" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasStringValue {
-      get { return valueCase_ == ValueOneofCase.StringValue; }
-    }
-    /// <summary> Clears the value of the oneof if it's currently set to "string_value" </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearStringValue() {
-      if (HasStringValue) {
-        ClearValue();
-      }
-    }
-
-    /// <summary>Field number for the "guid_value" field.</summary>
-    public const int GuidValueFieldNumber = 10;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public long GuidValue {
-      get { return HasGuidValue ? (long) value_ : 0L; }
-      set {
-        value_ = value;
-        valueCase_ = ValueOneofCase.GuidValue;
-      }
-    }
-    /// <summary>Gets whether the "guid_value" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasGuidValue {
-      get { return valueCase_ == ValueOneofCase.GuidValue; }
-    }
-    /// <summary> Clears the value of the oneof if it's currently set to "guid_value" </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearGuidValue() {
-      if (HasGuidValue) {
-        ClearValue();
-      }
-    }
-
-    private object value_;
-    /// <summary>Enum of possible cases for the "value" oneof.</summary>
-    public enum ValueOneofCase {
-      None = 0,
-      BoolValue = 2,
-      Int32Value = 3,
-      Uint32Value = 4,
-      Int64Value = 5,
-      Uint64Value = 6,
-      FloatValue = 7,
-      DoubleValue = 8,
-      StringValue = 9,
-      GuidValue = 10,
-    }
-    private ValueOneofCase valueCase_ = ValueOneofCase.None;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public ValueOneofCase ValueCase {
-      get { return valueCase_; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearValue() {
-      valueCase_ = ValueOneofCase.None;
-      value_ = null;
+    public pbc::RepeatedField<long> EquipmentIds {
+      get { return equipmentIds_; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
-      return Equals(other as scalar_field);
+      return Equals(other as player_binding);
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(scalar_field other) {
+    public bool Equals(player_binding other) {
       if (ReferenceEquals(other, null)) {
         return false;
       }
       if (ReferenceEquals(other, this)) {
         return true;
       }
-      if (Index != other.Index) return false;
-      if (BoolValue != other.BoolValue) return false;
-      if (Int32Value != other.Int32Value) return false;
-      if (Uint32Value != other.Uint32Value) return false;
-      if (Int64Value != other.Int64Value) return false;
-      if (Uint64Value != other.Uint64Value) return false;
-      if (!pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.Equals(FloatValue, other.FloatValue)) return false;
-      if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(DoubleValue, other.DoubleValue)) return false;
-      if (StringValue != other.StringValue) return false;
-      if (GuidValue != other.GuidValue) return false;
-      if (ValueCase != other.ValueCase) return false;
+      if (EntityId != other.EntityId) return false;
+      if (Incarnation != other.Incarnation) return false;
+      if (Generation != other.Generation) return false;
+      if(!equipmentIds_.Equals(other.equipmentIds_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -2167,17 +1900,10 @@ namespace Ark.Client.Protocol {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override int GetHashCode() {
       int hash = 1;
-      if (Index != 0) hash ^= Index.GetHashCode();
-      if (HasBoolValue) hash ^= BoolValue.GetHashCode();
-      if (HasInt32Value) hash ^= Int32Value.GetHashCode();
-      if (HasUint32Value) hash ^= Uint32Value.GetHashCode();
-      if (HasInt64Value) hash ^= Int64Value.GetHashCode();
-      if (HasUint64Value) hash ^= Uint64Value.GetHashCode();
-      if (HasFloatValue) hash ^= pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.GetHashCode(FloatValue);
-      if (HasDoubleValue) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(DoubleValue);
-      if (HasStringValue) hash ^= StringValue.GetHashCode();
-      if (HasGuidValue) hash ^= GuidValue.GetHashCode();
-      hash ^= (int) valueCase_;
+      if (EntityId != 0UL) hash ^= EntityId.GetHashCode();
+      if (Incarnation != 0UL) hash ^= Incarnation.GetHashCode();
+      if (Generation != 0UL) hash ^= Generation.GetHashCode();
+      hash ^= equipmentIds_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -2196,46 +1922,19 @@ namespace Ark.Client.Protocol {
     #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       output.WriteRawMessage(this);
     #else
-      if (Index != 0) {
+      if (EntityId != 0UL) {
         output.WriteRawTag(8);
-        output.WriteUInt32(Index);
+        output.WriteUInt64(EntityId);
       }
-      if (HasBoolValue) {
+      if (Incarnation != 0UL) {
         output.WriteRawTag(16);
-        output.WriteBool(BoolValue);
+        output.WriteUInt64(Incarnation);
       }
-      if (HasInt32Value) {
+      if (Generation != 0UL) {
         output.WriteRawTag(24);
-        output.WriteSInt32(Int32Value);
+        output.WriteUInt64(Generation);
       }
-      if (HasUint32Value) {
-        output.WriteRawTag(32);
-        output.WriteUInt32(Uint32Value);
-      }
-      if (HasInt64Value) {
-        output.WriteRawTag(40);
-        output.WriteSInt64(Int64Value);
-      }
-      if (HasUint64Value) {
-        output.WriteRawTag(48);
-        output.WriteUInt64(Uint64Value);
-      }
-      if (HasFloatValue) {
-        output.WriteRawTag(61);
-        output.WriteFloat(FloatValue);
-      }
-      if (HasDoubleValue) {
-        output.WriteRawTag(65);
-        output.WriteDouble(DoubleValue);
-      }
-      if (HasStringValue) {
-        output.WriteRawTag(74);
-        output.WriteBytes(StringValue);
-      }
-      if (HasGuidValue) {
-        output.WriteRawTag(80);
-        output.WriteSInt64(GuidValue);
-      }
+      equipmentIds_.WriteTo(output, _repeated_equipmentIds_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -2246,46 +1945,19 @@ namespace Ark.Client.Protocol {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (Index != 0) {
+      if (EntityId != 0UL) {
         output.WriteRawTag(8);
-        output.WriteUInt32(Index);
+        output.WriteUInt64(EntityId);
       }
-      if (HasBoolValue) {
+      if (Incarnation != 0UL) {
         output.WriteRawTag(16);
-        output.WriteBool(BoolValue);
+        output.WriteUInt64(Incarnation);
       }
-      if (HasInt32Value) {
+      if (Generation != 0UL) {
         output.WriteRawTag(24);
-        output.WriteSInt32(Int32Value);
+        output.WriteUInt64(Generation);
       }
-      if (HasUint32Value) {
-        output.WriteRawTag(32);
-        output.WriteUInt32(Uint32Value);
-      }
-      if (HasInt64Value) {
-        output.WriteRawTag(40);
-        output.WriteSInt64(Int64Value);
-      }
-      if (HasUint64Value) {
-        output.WriteRawTag(48);
-        output.WriteUInt64(Uint64Value);
-      }
-      if (HasFloatValue) {
-        output.WriteRawTag(61);
-        output.WriteFloat(FloatValue);
-      }
-      if (HasDoubleValue) {
-        output.WriteRawTag(65);
-        output.WriteDouble(DoubleValue);
-      }
-      if (HasStringValue) {
-        output.WriteRawTag(74);
-        output.WriteBytes(StringValue);
-      }
-      if (HasGuidValue) {
-        output.WriteRawTag(80);
-        output.WriteSInt64(GuidValue);
-      }
+      equipmentIds_.WriteTo(ref output, _repeated_equipmentIds_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -2296,36 +1968,16 @@ namespace Ark.Client.Protocol {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public int CalculateSize() {
       int size = 0;
-      if (Index != 0) {
-        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Index);
+      if (EntityId != 0UL) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(EntityId);
       }
-      if (HasBoolValue) {
-        size += 1 + 1;
+      if (Incarnation != 0UL) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(Incarnation);
       }
-      if (HasInt32Value) {
-        size += 1 + pb::CodedOutputStream.ComputeSInt32Size(Int32Value);
+      if (Generation != 0UL) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(Generation);
       }
-      if (HasUint32Value) {
-        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Uint32Value);
-      }
-      if (HasInt64Value) {
-        size += 1 + pb::CodedOutputStream.ComputeSInt64Size(Int64Value);
-      }
-      if (HasUint64Value) {
-        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(Uint64Value);
-      }
-      if (HasFloatValue) {
-        size += 1 + 4;
-      }
-      if (HasDoubleValue) {
-        size += 1 + 8;
-      }
-      if (HasStringValue) {
-        size += 1 + pb::CodedOutputStream.ComputeBytesSize(StringValue);
-      }
-      if (HasGuidValue) {
-        size += 1 + pb::CodedOutputStream.ComputeSInt64Size(GuidValue);
-      }
+      size += equipmentIds_.CalculateSize(_repeated_equipmentIds_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -2334,43 +1986,20 @@ namespace Ark.Client.Protocol {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(scalar_field other) {
+    public void MergeFrom(player_binding other) {
       if (other == null) {
         return;
       }
-      if (other.Index != 0) {
-        Index = other.Index;
+      if (other.EntityId != 0UL) {
+        EntityId = other.EntityId;
       }
-      switch (other.ValueCase) {
-        case ValueOneofCase.BoolValue:
-          BoolValue = other.BoolValue;
-          break;
-        case ValueOneofCase.Int32Value:
-          Int32Value = other.Int32Value;
-          break;
-        case ValueOneofCase.Uint32Value:
-          Uint32Value = other.Uint32Value;
-          break;
-        case ValueOneofCase.Int64Value:
-          Int64Value = other.Int64Value;
-          break;
-        case ValueOneofCase.Uint64Value:
-          Uint64Value = other.Uint64Value;
-          break;
-        case ValueOneofCase.FloatValue:
-          FloatValue = other.FloatValue;
-          break;
-        case ValueOneofCase.DoubleValue:
-          DoubleValue = other.DoubleValue;
-          break;
-        case ValueOneofCase.StringValue:
-          StringValue = other.StringValue;
-          break;
-        case ValueOneofCase.GuidValue:
-          GuidValue = other.GuidValue;
-          break;
+      if (other.Incarnation != 0UL) {
+        Incarnation = other.Incarnation;
       }
-
+      if (other.Generation != 0UL) {
+        Generation = other.Generation;
+      }
+      equipmentIds_.Add(other.equipmentIds_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -2391,43 +2020,20 @@ namespace Ark.Client.Protocol {
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
             break;
           case 8: {
-            Index = input.ReadUInt32();
+            EntityId = input.ReadUInt64();
             break;
           }
           case 16: {
-            BoolValue = input.ReadBool();
+            Incarnation = input.ReadUInt64();
             break;
           }
           case 24: {
-            Int32Value = input.ReadSInt32();
+            Generation = input.ReadUInt64();
             break;
           }
+          case 34:
           case 32: {
-            Uint32Value = input.ReadUInt32();
-            break;
-          }
-          case 40: {
-            Int64Value = input.ReadSInt64();
-            break;
-          }
-          case 48: {
-            Uint64Value = input.ReadUInt64();
-            break;
-          }
-          case 61: {
-            FloatValue = input.ReadFloat();
-            break;
-          }
-          case 65: {
-            DoubleValue = input.ReadDouble();
-            break;
-          }
-          case 74: {
-            StringValue = input.ReadBytes();
-            break;
-          }
-          case 80: {
-            GuidValue = input.ReadSInt64();
+            equipmentIds_.AddEntriesFrom(input, _repeated_equipmentIds_codec);
             break;
           }
         }
@@ -2450,861 +2056,20 @@ namespace Ark.Client.Protocol {
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
             break;
           case 8: {
-            Index = input.ReadUInt32();
-            break;
-          }
-          case 16: {
-            BoolValue = input.ReadBool();
-            break;
-          }
-          case 24: {
-            Int32Value = input.ReadSInt32();
-            break;
-          }
-          case 32: {
-            Uint32Value = input.ReadUInt32();
-            break;
-          }
-          case 40: {
-            Int64Value = input.ReadSInt64();
-            break;
-          }
-          case 48: {
-            Uint64Value = input.ReadUInt64();
-            break;
-          }
-          case 61: {
-            FloatValue = input.ReadFloat();
-            break;
-          }
-          case 65: {
-            DoubleValue = input.ReadDouble();
-            break;
-          }
-          case 74: {
-            StringValue = input.ReadBytes();
-            break;
-          }
-          case 80: {
-            GuidValue = input.ReadSInt64();
-            break;
-          }
-        }
-      }
-    }
-    #endif
-
-  }
-
-  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class scalar_baseline : pb::IMessage<scalar_baseline>
-  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      , pb::IBufferMessage
-  #endif
-  {
-    private static readonly pb::MessageParser<scalar_baseline> _parser = new pb::MessageParser<scalar_baseline>(() => new scalar_baseline());
-    private pb::UnknownFieldSet _unknownFields;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<scalar_baseline> Parser { get { return _parser; } }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pbr::MessageDescriptor Descriptor {
-      get { return global::Ark.Client.Protocol.GuestRoomReflection.Descriptor.MessageTypes[7]; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    pbr::MessageDescriptor pb::IMessage.Descriptor {
-      get { return Descriptor; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public scalar_baseline() {
-      OnConstruction();
-    }
-
-    partial void OnConstruction();
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public scalar_baseline(scalar_baseline other) : this() {
-      schemaId_ = other.schemaId_;
-      generation_ = other.generation_;
-      revision_ = other.revision_;
-      entityId_ = other.entityId_;
-      className_ = other.className_;
-      fields_ = other.fields_.Clone();
-      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public scalar_baseline Clone() {
-      return new scalar_baseline(this);
-    }
-
-    /// <summary>Field number for the "schema_id" field.</summary>
-    public const int SchemaIdFieldNumber = 1;
-    private string schemaId_ = "";
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string SchemaId {
-      get { return schemaId_; }
-      set {
-        schemaId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-
-    /// <summary>Field number for the "generation" field.</summary>
-    public const int GenerationFieldNumber = 2;
-    private ulong generation_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public ulong Generation {
-      get { return generation_; }
-      set {
-        generation_ = value;
-      }
-    }
-
-    /// <summary>Field number for the "revision" field.</summary>
-    public const int RevisionFieldNumber = 3;
-    private ulong revision_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public ulong Revision {
-      get { return revision_; }
-      set {
-        revision_ = value;
-      }
-    }
-
-    /// <summary>Field number for the "entity_id" field.</summary>
-    public const int EntityIdFieldNumber = 4;
-    private ulong entityId_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public ulong EntityId {
-      get { return entityId_; }
-      set {
-        entityId_ = value;
-      }
-    }
-
-    /// <summary>Field number for the "class_name" field.</summary>
-    public const int ClassNameFieldNumber = 5;
-    private string className_ = "";
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string ClassName {
-      get { return className_; }
-      set {
-        className_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-
-    /// <summary>Field number for the "fields" field.</summary>
-    public const int FieldsFieldNumber = 6;
-    private static readonly pb::FieldCodec<global::Ark.Client.Protocol.scalar_field> _repeated_fields_codec
-        = pb::FieldCodec.ForMessage(50, global::Ark.Client.Protocol.scalar_field.Parser);
-    private readonly pbc::RepeatedField<global::Ark.Client.Protocol.scalar_field> fields_ = new pbc::RepeatedField<global::Ark.Client.Protocol.scalar_field>();
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<global::Ark.Client.Protocol.scalar_field> Fields {
-      get { return fields_; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override bool Equals(object other) {
-      return Equals(other as scalar_baseline);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(scalar_baseline other) {
-      if (ReferenceEquals(other, null)) {
-        return false;
-      }
-      if (ReferenceEquals(other, this)) {
-        return true;
-      }
-      if (SchemaId != other.SchemaId) return false;
-      if (Generation != other.Generation) return false;
-      if (Revision != other.Revision) return false;
-      if (EntityId != other.EntityId) return false;
-      if (ClassName != other.ClassName) return false;
-      if(!fields_.Equals(other.fields_)) return false;
-      return Equals(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override int GetHashCode() {
-      int hash = 1;
-      if (SchemaId.Length != 0) hash ^= SchemaId.GetHashCode();
-      if (Generation != 0UL) hash ^= Generation.GetHashCode();
-      if (Revision != 0UL) hash ^= Revision.GetHashCode();
-      if (EntityId != 0UL) hash ^= EntityId.GetHashCode();
-      if (ClassName.Length != 0) hash ^= ClassName.GetHashCode();
-      hash ^= fields_.GetHashCode();
-      if (_unknownFields != null) {
-        hash ^= _unknownFields.GetHashCode();
-      }
-      return hash;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override string ToString() {
-      return pb::JsonFormatter.ToDiagnosticString(this);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void WriteTo(pb::CodedOutputStream output) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      output.WriteRawMessage(this);
-    #else
-      if (SchemaId.Length != 0) {
-        output.WriteRawTag(10);
-        output.WriteString(SchemaId);
-      }
-      if (Generation != 0UL) {
-        output.WriteRawTag(16);
-        output.WriteUInt64(Generation);
-      }
-      if (Revision != 0UL) {
-        output.WriteRawTag(24);
-        output.WriteUInt64(Revision);
-      }
-      if (EntityId != 0UL) {
-        output.WriteRawTag(32);
-        output.WriteUInt64(EntityId);
-      }
-      if (ClassName.Length != 0) {
-        output.WriteRawTag(42);
-        output.WriteString(ClassName);
-      }
-      fields_.WriteTo(output, _repeated_fields_codec);
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(output);
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (SchemaId.Length != 0) {
-        output.WriteRawTag(10);
-        output.WriteString(SchemaId);
-      }
-      if (Generation != 0UL) {
-        output.WriteRawTag(16);
-        output.WriteUInt64(Generation);
-      }
-      if (Revision != 0UL) {
-        output.WriteRawTag(24);
-        output.WriteUInt64(Revision);
-      }
-      if (EntityId != 0UL) {
-        output.WriteRawTag(32);
-        output.WriteUInt64(EntityId);
-      }
-      if (ClassName.Length != 0) {
-        output.WriteRawTag(42);
-        output.WriteString(ClassName);
-      }
-      fields_.WriteTo(ref output, _repeated_fields_codec);
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(ref output);
-      }
-    }
-    #endif
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public int CalculateSize() {
-      int size = 0;
-      if (SchemaId.Length != 0) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(SchemaId);
-      }
-      if (Generation != 0UL) {
-        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(Generation);
-      }
-      if (Revision != 0UL) {
-        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(Revision);
-      }
-      if (EntityId != 0UL) {
-        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(EntityId);
-      }
-      if (ClassName.Length != 0) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(ClassName);
-      }
-      size += fields_.CalculateSize(_repeated_fields_codec);
-      if (_unknownFields != null) {
-        size += _unknownFields.CalculateSize();
-      }
-      return size;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(scalar_baseline other) {
-      if (other == null) {
-        return;
-      }
-      if (other.SchemaId.Length != 0) {
-        SchemaId = other.SchemaId;
-      }
-      if (other.Generation != 0UL) {
-        Generation = other.Generation;
-      }
-      if (other.Revision != 0UL) {
-        Revision = other.Revision;
-      }
-      if (other.EntityId != 0UL) {
-        EntityId = other.EntityId;
-      }
-      if (other.ClassName.Length != 0) {
-        ClassName = other.ClassName;
-      }
-      fields_.Add(other.fields_);
-      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(pb::CodedInputStream input) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      input.ReadRawMessage(this);
-    #else
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
-            break;
-          case 10: {
-            SchemaId = input.ReadString();
-            break;
-          }
-          case 16: {
-            Generation = input.ReadUInt64();
-            break;
-          }
-          case 24: {
-            Revision = input.ReadUInt64();
-            break;
-          }
-          case 32: {
             EntityId = input.ReadUInt64();
             break;
           }
-          case 42: {
-            ClassName = input.ReadString();
-            break;
-          }
-          case 50: {
-            fields_.AddEntriesFrom(input, _repeated_fields_codec);
-            break;
-          }
-        }
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
-            break;
-          case 10: {
-            SchemaId = input.ReadString();
-            break;
-          }
           case 16: {
-            Generation = input.ReadUInt64();
+            Incarnation = input.ReadUInt64();
             break;
           }
           case 24: {
-            Revision = input.ReadUInt64();
-            break;
-          }
-          case 32: {
-            EntityId = input.ReadUInt64();
-            break;
-          }
-          case 42: {
-            ClassName = input.ReadString();
-            break;
-          }
-          case 50: {
-            fields_.AddEntriesFrom(ref input, _repeated_fields_codec);
-            break;
-          }
-        }
-      }
-    }
-    #endif
-
-  }
-
-  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class scalar_delta : pb::IMessage<scalar_delta>
-  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      , pb::IBufferMessage
-  #endif
-  {
-    private static readonly pb::MessageParser<scalar_delta> _parser = new pb::MessageParser<scalar_delta>(() => new scalar_delta());
-    private pb::UnknownFieldSet _unknownFields;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<scalar_delta> Parser { get { return _parser; } }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pbr::MessageDescriptor Descriptor {
-      get { return global::Ark.Client.Protocol.GuestRoomReflection.Descriptor.MessageTypes[8]; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    pbr::MessageDescriptor pb::IMessage.Descriptor {
-      get { return Descriptor; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public scalar_delta() {
-      OnConstruction();
-    }
-
-    partial void OnConstruction();
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public scalar_delta(scalar_delta other) : this() {
-      schemaId_ = other.schemaId_;
-      generation_ = other.generation_;
-      requiredRevision_ = other.requiredRevision_;
-      revision_ = other.revision_;
-      entityId_ = other.entityId_;
-      className_ = other.className_;
-      fields_ = other.fields_.Clone();
-      removed_ = other.removed_;
-      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public scalar_delta Clone() {
-      return new scalar_delta(this);
-    }
-
-    /// <summary>Field number for the "schema_id" field.</summary>
-    public const int SchemaIdFieldNumber = 1;
-    private string schemaId_ = "";
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string SchemaId {
-      get { return schemaId_; }
-      set {
-        schemaId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-
-    /// <summary>Field number for the "generation" field.</summary>
-    public const int GenerationFieldNumber = 2;
-    private ulong generation_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public ulong Generation {
-      get { return generation_; }
-      set {
-        generation_ = value;
-      }
-    }
-
-    /// <summary>Field number for the "required_revision" field.</summary>
-    public const int RequiredRevisionFieldNumber = 3;
-    private ulong requiredRevision_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public ulong RequiredRevision {
-      get { return requiredRevision_; }
-      set {
-        requiredRevision_ = value;
-      }
-    }
-
-    /// <summary>Field number for the "revision" field.</summary>
-    public const int RevisionFieldNumber = 4;
-    private ulong revision_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public ulong Revision {
-      get { return revision_; }
-      set {
-        revision_ = value;
-      }
-    }
-
-    /// <summary>Field number for the "entity_id" field.</summary>
-    public const int EntityIdFieldNumber = 5;
-    private ulong entityId_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public ulong EntityId {
-      get { return entityId_; }
-      set {
-        entityId_ = value;
-      }
-    }
-
-    /// <summary>Field number for the "class_name" field.</summary>
-    public const int ClassNameFieldNumber = 6;
-    private string className_ = "";
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string ClassName {
-      get { return className_; }
-      set {
-        className_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-
-    /// <summary>Field number for the "fields" field.</summary>
-    public const int FieldsFieldNumber = 7;
-    private static readonly pb::FieldCodec<global::Ark.Client.Protocol.scalar_field> _repeated_fields_codec
-        = pb::FieldCodec.ForMessage(58, global::Ark.Client.Protocol.scalar_field.Parser);
-    private readonly pbc::RepeatedField<global::Ark.Client.Protocol.scalar_field> fields_ = new pbc::RepeatedField<global::Ark.Client.Protocol.scalar_field>();
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<global::Ark.Client.Protocol.scalar_field> Fields {
-      get { return fields_; }
-    }
-
-    /// <summary>Field number for the "removed" field.</summary>
-    public const int RemovedFieldNumber = 8;
-    private bool removed_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Removed {
-      get { return removed_; }
-      set {
-        removed_ = value;
-      }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override bool Equals(object other) {
-      return Equals(other as scalar_delta);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(scalar_delta other) {
-      if (ReferenceEquals(other, null)) {
-        return false;
-      }
-      if (ReferenceEquals(other, this)) {
-        return true;
-      }
-      if (SchemaId != other.SchemaId) return false;
-      if (Generation != other.Generation) return false;
-      if (RequiredRevision != other.RequiredRevision) return false;
-      if (Revision != other.Revision) return false;
-      if (EntityId != other.EntityId) return false;
-      if (ClassName != other.ClassName) return false;
-      if(!fields_.Equals(other.fields_)) return false;
-      if (Removed != other.Removed) return false;
-      return Equals(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override int GetHashCode() {
-      int hash = 1;
-      if (SchemaId.Length != 0) hash ^= SchemaId.GetHashCode();
-      if (Generation != 0UL) hash ^= Generation.GetHashCode();
-      if (RequiredRevision != 0UL) hash ^= RequiredRevision.GetHashCode();
-      if (Revision != 0UL) hash ^= Revision.GetHashCode();
-      if (EntityId != 0UL) hash ^= EntityId.GetHashCode();
-      if (ClassName.Length != 0) hash ^= ClassName.GetHashCode();
-      hash ^= fields_.GetHashCode();
-      if (Removed != false) hash ^= Removed.GetHashCode();
-      if (_unknownFields != null) {
-        hash ^= _unknownFields.GetHashCode();
-      }
-      return hash;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override string ToString() {
-      return pb::JsonFormatter.ToDiagnosticString(this);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void WriteTo(pb::CodedOutputStream output) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      output.WriteRawMessage(this);
-    #else
-      if (SchemaId.Length != 0) {
-        output.WriteRawTag(10);
-        output.WriteString(SchemaId);
-      }
-      if (Generation != 0UL) {
-        output.WriteRawTag(16);
-        output.WriteUInt64(Generation);
-      }
-      if (RequiredRevision != 0UL) {
-        output.WriteRawTag(24);
-        output.WriteUInt64(RequiredRevision);
-      }
-      if (Revision != 0UL) {
-        output.WriteRawTag(32);
-        output.WriteUInt64(Revision);
-      }
-      if (EntityId != 0UL) {
-        output.WriteRawTag(40);
-        output.WriteUInt64(EntityId);
-      }
-      if (ClassName.Length != 0) {
-        output.WriteRawTag(50);
-        output.WriteString(ClassName);
-      }
-      fields_.WriteTo(output, _repeated_fields_codec);
-      if (Removed != false) {
-        output.WriteRawTag(64);
-        output.WriteBool(Removed);
-      }
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(output);
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (SchemaId.Length != 0) {
-        output.WriteRawTag(10);
-        output.WriteString(SchemaId);
-      }
-      if (Generation != 0UL) {
-        output.WriteRawTag(16);
-        output.WriteUInt64(Generation);
-      }
-      if (RequiredRevision != 0UL) {
-        output.WriteRawTag(24);
-        output.WriteUInt64(RequiredRevision);
-      }
-      if (Revision != 0UL) {
-        output.WriteRawTag(32);
-        output.WriteUInt64(Revision);
-      }
-      if (EntityId != 0UL) {
-        output.WriteRawTag(40);
-        output.WriteUInt64(EntityId);
-      }
-      if (ClassName.Length != 0) {
-        output.WriteRawTag(50);
-        output.WriteString(ClassName);
-      }
-      fields_.WriteTo(ref output, _repeated_fields_codec);
-      if (Removed != false) {
-        output.WriteRawTag(64);
-        output.WriteBool(Removed);
-      }
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(ref output);
-      }
-    }
-    #endif
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public int CalculateSize() {
-      int size = 0;
-      if (SchemaId.Length != 0) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(SchemaId);
-      }
-      if (Generation != 0UL) {
-        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(Generation);
-      }
-      if (RequiredRevision != 0UL) {
-        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(RequiredRevision);
-      }
-      if (Revision != 0UL) {
-        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(Revision);
-      }
-      if (EntityId != 0UL) {
-        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(EntityId);
-      }
-      if (ClassName.Length != 0) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(ClassName);
-      }
-      size += fields_.CalculateSize(_repeated_fields_codec);
-      if (Removed != false) {
-        size += 1 + 1;
-      }
-      if (_unknownFields != null) {
-        size += _unknownFields.CalculateSize();
-      }
-      return size;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(scalar_delta other) {
-      if (other == null) {
-        return;
-      }
-      if (other.SchemaId.Length != 0) {
-        SchemaId = other.SchemaId;
-      }
-      if (other.Generation != 0UL) {
-        Generation = other.Generation;
-      }
-      if (other.RequiredRevision != 0UL) {
-        RequiredRevision = other.RequiredRevision;
-      }
-      if (other.Revision != 0UL) {
-        Revision = other.Revision;
-      }
-      if (other.EntityId != 0UL) {
-        EntityId = other.EntityId;
-      }
-      if (other.ClassName.Length != 0) {
-        ClassName = other.ClassName;
-      }
-      fields_.Add(other.fields_);
-      if (other.Removed != false) {
-        Removed = other.Removed;
-      }
-      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(pb::CodedInputStream input) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      input.ReadRawMessage(this);
-    #else
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
-            break;
-          case 10: {
-            SchemaId = input.ReadString();
-            break;
-          }
-          case 16: {
             Generation = input.ReadUInt64();
             break;
           }
-          case 24: {
-            RequiredRevision = input.ReadUInt64();
-            break;
-          }
+          case 34:
           case 32: {
-            Revision = input.ReadUInt64();
-            break;
-          }
-          case 40: {
-            EntityId = input.ReadUInt64();
-            break;
-          }
-          case 50: {
-            ClassName = input.ReadString();
-            break;
-          }
-          case 58: {
-            fields_.AddEntriesFrom(input, _repeated_fields_codec);
-            break;
-          }
-          case 64: {
-            Removed = input.ReadBool();
-            break;
-          }
-        }
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
-            break;
-          case 10: {
-            SchemaId = input.ReadString();
-            break;
-          }
-          case 16: {
-            Generation = input.ReadUInt64();
-            break;
-          }
-          case 24: {
-            RequiredRevision = input.ReadUInt64();
-            break;
-          }
-          case 32: {
-            Revision = input.ReadUInt64();
-            break;
-          }
-          case 40: {
-            EntityId = input.ReadUInt64();
-            break;
-          }
-          case 50: {
-            ClassName = input.ReadString();
-            break;
-          }
-          case 58: {
-            fields_.AddEntriesFrom(ref input, _repeated_fields_codec);
-            break;
-          }
-          case 64: {
-            Removed = input.ReadBool();
+            equipmentIds_.AddEntriesFrom(ref input, _repeated_equipmentIds_codec);
             break;
           }
         }
@@ -3329,7 +2094,7 @@ namespace Ark.Client.Protocol {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Ark.Client.Protocol.GuestRoomReflection.Descriptor.MessageTypes[9]; }
+      get { return global::Ark.Client.Protocol.GuestRoomReflection.Descriptor.MessageTypes[7]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -3351,6 +2116,7 @@ namespace Ark.Client.Protocol {
     public player_baseline(player_baseline other) : this() {
       playerId_ = other.playerId_;
       state_ = other.state_ != null ? other.state_.Clone() : null;
+      binding_ = other.binding_ != null ? other.binding_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -3374,13 +2140,25 @@ namespace Ark.Client.Protocol {
 
     /// <summary>Field number for the "state" field.</summary>
     public const int StateFieldNumber = 2;
-    private global::Ark.Client.Protocol.scalar_baseline state_;
+    private global::Ark.Client.Protocol.EntitySync.nested_baseline state_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::Ark.Client.Protocol.scalar_baseline State {
+    public global::Ark.Client.Protocol.EntitySync.nested_baseline State {
       get { return state_; }
       set {
         state_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "binding" field.</summary>
+    public const int BindingFieldNumber = 3;
+    private global::Ark.Client.Protocol.player_binding binding_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::Ark.Client.Protocol.player_binding Binding {
+      get { return binding_; }
+      set {
+        binding_ = value;
       }
     }
 
@@ -3401,6 +2179,7 @@ namespace Ark.Client.Protocol {
       }
       if (PlayerId != other.PlayerId) return false;
       if (!object.Equals(State, other.State)) return false;
+      if (!object.Equals(Binding, other.Binding)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -3410,6 +2189,7 @@ namespace Ark.Client.Protocol {
       int hash = 1;
       if (PlayerId.Length != 0) hash ^= PlayerId.GetHashCode();
       if (state_ != null) hash ^= State.GetHashCode();
+      if (binding_ != null) hash ^= Binding.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -3436,6 +2216,10 @@ namespace Ark.Client.Protocol {
         output.WriteRawTag(18);
         output.WriteMessage(State);
       }
+      if (binding_ != null) {
+        output.WriteRawTag(26);
+        output.WriteMessage(Binding);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -3454,6 +2238,10 @@ namespace Ark.Client.Protocol {
         output.WriteRawTag(18);
         output.WriteMessage(State);
       }
+      if (binding_ != null) {
+        output.WriteRawTag(26);
+        output.WriteMessage(Binding);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -3469,6 +2257,9 @@ namespace Ark.Client.Protocol {
       }
       if (state_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(State);
+      }
+      if (binding_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Binding);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -3487,9 +2278,15 @@ namespace Ark.Client.Protocol {
       }
       if (other.state_ != null) {
         if (state_ == null) {
-          State = new global::Ark.Client.Protocol.scalar_baseline();
+          State = new global::Ark.Client.Protocol.EntitySync.nested_baseline();
         }
         State.MergeFrom(other.State);
+      }
+      if (other.binding_ != null) {
+        if (binding_ == null) {
+          Binding = new global::Ark.Client.Protocol.player_binding();
+        }
+        Binding.MergeFrom(other.Binding);
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -3516,9 +2313,16 @@ namespace Ark.Client.Protocol {
           }
           case 18: {
             if (state_ == null) {
-              State = new global::Ark.Client.Protocol.scalar_baseline();
+              State = new global::Ark.Client.Protocol.EntitySync.nested_baseline();
             }
             input.ReadMessage(State);
+            break;
+          }
+          case 26: {
+            if (binding_ == null) {
+              Binding = new global::Ark.Client.Protocol.player_binding();
+            }
+            input.ReadMessage(Binding);
             break;
           }
         }
@@ -3546,9 +2350,16 @@ namespace Ark.Client.Protocol {
           }
           case 18: {
             if (state_ == null) {
-              State = new global::Ark.Client.Protocol.scalar_baseline();
+              State = new global::Ark.Client.Protocol.EntitySync.nested_baseline();
             }
             input.ReadMessage(State);
+            break;
+          }
+          case 26: {
+            if (binding_ == null) {
+              Binding = new global::Ark.Client.Protocol.player_binding();
+            }
+            input.ReadMessage(Binding);
             break;
           }
         }
@@ -3573,7 +2384,7 @@ namespace Ark.Client.Protocol {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Ark.Client.Protocol.GuestRoomReflection.Descriptor.MessageTypes[10]; }
+      get { return global::Ark.Client.Protocol.GuestRoomReflection.Descriptor.MessageTypes[8]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -3797,7 +2608,7 @@ namespace Ark.Client.Protocol {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Ark.Client.Protocol.GuestRoomReflection.Descriptor.MessageTypes[11]; }
+      get { return global::Ark.Client.Protocol.GuestRoomReflection.Descriptor.MessageTypes[9]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -3854,12 +2665,12 @@ namespace Ark.Client.Protocol {
 
     /// <summary>Field number for the "changed" field.</summary>
     public const int ChangedFieldNumber = 3;
-    private static readonly pb::FieldCodec<global::Ark.Client.Protocol.scalar_delta> _repeated_changed_codec
-        = pb::FieldCodec.ForMessage(26, global::Ark.Client.Protocol.scalar_delta.Parser);
-    private readonly pbc::RepeatedField<global::Ark.Client.Protocol.scalar_delta> changed_ = new pbc::RepeatedField<global::Ark.Client.Protocol.scalar_delta>();
+    private static readonly pb::FieldCodec<global::Ark.Client.Protocol.EntitySync.nested_delta> _repeated_changed_codec
+        = pb::FieldCodec.ForMessage(26, global::Ark.Client.Protocol.EntitySync.nested_delta.Parser);
+    private readonly pbc::RepeatedField<global::Ark.Client.Protocol.EntitySync.nested_delta> changed_ = new pbc::RepeatedField<global::Ark.Client.Protocol.EntitySync.nested_delta>();
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<global::Ark.Client.Protocol.scalar_delta> Changed {
+    public pbc::RepeatedField<global::Ark.Client.Protocol.EntitySync.nested_delta> Changed {
       get { return changed_; }
     }
 
