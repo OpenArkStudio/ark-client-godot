@@ -9,6 +9,7 @@
   <ItemGroup>
     <Compile Include="Scripts/**/*.cs" />
     <Compile Include="tests/Support/AttributeSmokeProgress.cs" />
+    <Compile Include="tests/Support/NestedSmokeProgress.cs" />
     <ProjectReference Include="src/Ark.Client.Core/Ark.Client.Core.csproj" />
   </ItemGroup>
 </Project>

@@ -1,5 +1,7 @@
 # macOS 本地开发包导出
 
+> 下方导出记录使用旧标量房间协议，不代表当前嵌套 Entity 协议已通过导出验收。使用应用包前须按匹配的两端代码重新导出；当前项目运行结果见[验证](validation_CN.md)。
+
 在 macOS 上使用 Godot **4.7.2 .NET**、匹配的 **.NET 导出模板**和 SDK
 **8.0.427**。按[运行说明](run_CN.md)选择仓库外的工具，并将 SDK 加入 `PATH`。
 通过 **Editor > Manage Export Templates** 安装模板。需要联网获取或已缓存的

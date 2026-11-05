@@ -10,23 +10,26 @@ internal static class ProtocolNaming
 
     public static void Verify()
     {
-        FileDescriptor file = GuestRoomReflection.Descriptor;
-        CheckName(Path.GetFileNameWithoutExtension(file.Name));
-        foreach (string component in file.Package.Split('.'))
+        foreach (FileDescriptor file in new[] { GuestRoomReflection.Descriptor, Ark.Client.Protocol.EntitySync.EntitySyncReflection.Descriptor })
         {
-            CheckName(component);
-        }
-        foreach (MessageDescriptor message in file.MessageTypes)
-        {
-            CheckMessage(message);
-        }
-        foreach (EnumDescriptor enumeration in file.EnumTypes)
-        {
-            CheckEnum(enumeration);
+            CheckName(Path.GetFileNameWithoutExtension(file.Name));
+            foreach (string component in file.Package.Split('.'))
+            {
+                CheckName(component);
+            }
+            foreach (MessageDescriptor message in file.MessageTypes)
+            {
+                CheckMessage(message);
+            }
+            foreach (EnumDescriptor enumeration in file.EnumTypes)
+            {
+                CheckEnum(enumeration);
+            }
         }
 
-        string[] names = { "action_unspecified", "action_damage", "action_skill", "action_rest" };
-        action_kind[] kinds = { action_kind.ActionUnspecified, action_kind.ActionDamage, action_kind.ActionSkill, action_kind.ActionRest };
+        string[] names = { "action_unspecified", "action_damage", "action_skill", "action_rest", "action_pickup", "action_use_potion", "action_equip", "action_upgrade" };
+        action_kind[] kinds = { action_kind.ActionUnspecified, action_kind.ActionDamage, action_kind.ActionSkill, action_kind.ActionRest,
+            action_kind.ActionPickup, action_kind.ActionUsePotion, action_kind.ActionEquip, action_kind.ActionUpgrade };
         for (int number = 0; number < kinds.Length; number++)
         {
             Program.Check((int)kinds[number] == number && action_request.Descriptor.Fields[2].EnumType.FindValueByNumber(number).Name == names[number],

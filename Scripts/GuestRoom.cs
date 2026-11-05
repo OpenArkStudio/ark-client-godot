@@ -12,6 +12,8 @@ public partial class GuestRoom : Node2D
     private readonly ConfirmedAttributes _confirmedAttributes = new();
     private readonly AttributeSmokeProgress _smokeAttributes = new();
     private int _smokeActionStage;
+    private int _smokeNestedStage;
+    private readonly NestedSmokeProgress _smokeNested = new();
     private GuestRoomHud _hud = null!;
     private GuestRoomWorld _world = null!;
     private TcpConnection? _connection;
@@ -252,6 +254,7 @@ public partial class GuestRoom : Node2D
                             if (_smoke)
                             {
                                 _smokeAttributes.Observe(_room.Players);
+                                _smokeNested.Observe(_room.Players);
                             }
                             _world.ShowAttributeChanges(_confirmedAttributes.Observe(_room.Players), _clock);
                             _diagnostics.SnapshotApplied();
@@ -422,7 +425,8 @@ public partial class GuestRoom : Node2D
         {
             _oldPeerId ??= peer.Id;
         }
-        bool actionsComplete = _oldPeerId is not null && _smokeAttributes.Completed(_oldId, _oldPeerId);
+        bool attributesComplete = _oldPeerId is not null && _smokeAttributes.Completed(_oldId, _oldPeerId);
+        bool actionsComplete = attributesComplete && _smokeNested.Completed(_oldId, _oldPeerId!);
         if (peer is null && (!actionsComplete || _smokeReconnected))
         {
             return;
@@ -442,7 +446,7 @@ public partial class GuestRoom : Node2D
             return;
         }
 
-        if (!_smokeReconnected && !actionsComplete)
+        if (!_smokeReconnected && !attributesComplete)
         {
             if (_oldPeerId is not null && _smokeActionStage < AttributeSmokeProgress.Kinds.Length && _room.PendingAction is null &&
                 (_smokeActionStage == 0 || _smokeAttributes.SawBoth(_oldId, _oldPeerId, _smokeActionStage - 1)))
@@ -454,10 +458,23 @@ public partial class GuestRoom : Node2D
             return;
         }
 
+        if (!_smokeReconnected && !actionsComplete)
+        {
+            if (_oldPeerId is not null && _smokeNestedStage < NestedSmokeProgress.Kinds.Length && _room.PendingAction is null &&
+                (_smokeNestedStage == 0 || _smokeNested.SawBoth(_oldId, _oldPeerId, _smokeNestedStage - 1)))
+            {
+                string action = NestedSmokeProgress.Kinds[_smokeNestedStage++];
+                Send(_room.ActionFrame(action));
+                GD.Print($"SMOKE ENTITY ACTION {_name.Text} {action} id={self.Id}");
+            }
+            return;
+        }
+
         if (!_smokeReconnected && double.IsPositiveInfinity(_reconnectAt))
         {
             _reconnectAt = _clock + (_name.Text == "Alice" ? 0.3 : 1.0);
             GD.Print($"SMOKE PEER ATTRIBUTES {_name.Text} own_id={_oldId} peer_id={_oldPeerId} damage=85/100 skill=85/80 rest=100/100 action_seq=3");
+            GD.Print($"SMOKE NESTED {_name.Text} both_views=row_patch,row_remove,row_reuse,container_replace,child_patch,child_reappear action_seq=9");
         }
         if (!_smokeReconnected && _clock >= _reconnectAt)
         {
@@ -469,6 +486,7 @@ public partial class GuestRoom : Node2D
         SessionMetrics observed = _diagnostics.Capture();
         if (_smokeReconnected && peer is not null && self.Id != _oldId && peer.Id != _oldPeerId &&
             _smokeAttributes.SawFresh(self.Id) && _smokeAttributes.SawFresh(peer.Id) &&
+            _smokeNested.SawFresh(self.Id) && _smokeNested.SawFresh(peer.Id) &&
             self.Hp == 100 && self.Mp == 100 && self.ActionSequence == 0 && peer.Hp == 100 && peer.Mp == 100 && peer.ActionSequence == 0 &&
             _room.PendingAction is null && _room.LastProposedAction is null &&
             observed.ApplicationRttMilliseconds is double rtt && _connection is not null)

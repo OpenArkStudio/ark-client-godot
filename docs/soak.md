@@ -1,5 +1,7 @@
 # Bounded local multi-process soak
 
+> Sustained acceptance is paused until the [5,000-connection investigation](https://github.com/OpenArkStudio/arknet/issues/61) is resolved and passes. The dated results below used earlier protocol inputs; no sustained result is claimed for the current nested contract.
+
 Use .NET 8 and a dedicated, empty guest-room server. Select external tools as in
 the [run guide](run.md); the operator starts and stops the server.
 

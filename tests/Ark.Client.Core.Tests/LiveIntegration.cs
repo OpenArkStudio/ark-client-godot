@@ -83,6 +83,8 @@ internal static class LiveIntegration
         using var bob = new Client("Bob");
         await bob.Connect(host, port);
         await alice.Until(() => alice.Room.Players.Count == 2 && bob.Room.Players.Count == 2, bob);
+        Program.Check(alice.Room.Players.All(FreshNested) && bob.Room.Players.All(FreshNested), "Initial nested inventory/equipment not observed by both clients.");
+        var initialRows = alice.Room.Players.ToDictionary(player => player.Id, player => player.Inventory.Single().Incarnation);
         Program.Check(alice.Room.BaselineCount == 1 && bob.Room.BaselineCount == 1 && alice.Room.DeltaCount >= 1, "Late join did not use added baseline.");
         await alice.Connection.SendAsync(alice.Room.MoveFrame(120, 100));
         await bob.Connection.SendAsync(bob.Room.MoveFrame(240, 180));
@@ -95,6 +97,21 @@ internal static class LiveIntegration
                 bob.Room.Players.All(player => player.ActionSequence == sequence && player.Hp == hp && player.Mp == mp), bob);
             Console.WriteLine($"LIVE ACTION {kind} hp={hp} mp={mp} action_seq={sequence} peers=2");
         }
+        foreach ((string kind, uint quantity, uint item, uint power, uint sequence) in new[] {
+            ("use_potion", 1u, 1001u, 10u, 5u), ("use_potion", 0u, 1001u, 10u, 6u),
+            ("pickup", 1u, 1001u, 10u, 7u), ("pickup", 2u, 1001u, 10u, 8u),
+            ("equip", 2u, 1002u, 20u, 9u), ("upgrade", 2u, 1002u, 21u, 10u),
+            ("equip", 2u, 1001u, 10u, 11u), ("upgrade", 2u, 1001u, 11u, 12u), ("equip", 2u, 1002u, 21u, 13u) })
+        {
+            await alice.Connection.SendAsync(alice.Room.ActionFrame(kind));
+            await bob.Connection.SendAsync(bob.Room.ActionFrame(kind));
+            bool Confirmed(PlayerState player) => player.ActionSequence == sequence && player.Hp == 100 &&
+                (quantity == 0 ? player.Inventory.Count == 0 : player.Inventory.Single().Quantity == quantity &&
+                    (sequence < 7 || player.Inventory.Single().Incarnation > initialRows[player.Id])) && player.Equipment.Single() is EquipmentItem equipment &&
+                equipment.ItemId == item && equipment.Power == power;
+            await alice.Until(() => alice.Room.Players.All(Confirmed) && bob.Room.Players.All(Confirmed) && alice.Room.PendingAction is null && bob.Room.PendingAction is null, bob);
+            Console.WriteLine($"LIVE NESTED {kind} quantity={quantity} item={item} power={power} action_seq={sequence} peers=2");
+        }
         Program.Check(alice.Room.BaselineCount == 1 && bob.Room.BaselineCount == 1, "Movement/actions broadcast full room baselines.");
         await alice.Close();
         await bob.Until(() => bob.Room.Players.Count == 1);
@@ -103,12 +120,14 @@ internal static class LiveIntegration
         await fresh.Connect(host, port);
         await bob.Until(() => bob.Room.Players.Count == 2 && fresh.Room.Players.Count == 2, fresh);
         Program.Check(fresh.Room.EntityId != oldEntity && fresh.Room.PlayerId != oldId && fresh.Room.BaselineCount == 1 &&
-            fresh.Room.Players.Single(player => player.EntityId == fresh.Room.EntityId) is { Hp: 100, Mp: 100, Sequence: 0, ActionSequence: 0 }, "Reconnect did not install fresh identity/baseline.");
+            fresh.Room.Players.Single(player => player.EntityId == fresh.Room.EntityId) is { Hp: 100, Mp: 100, Sequence: 0, ActionSequence: 0 } own && FreshNested(own), "Reconnect did not install fresh identity/baseline.");
         await fresh.Connection.SendAsync(RoomSession.PingFrame(55));
         await fresh.Until(() => fresh.Room.LastPong == 55, bob);
-        Console.WriteLine($"LIVE PASS join late_join delta_move hp_mp no_op_action removal reconnect ping old_entity={oldEntity} new_entity={fresh.Room.EntityId} alice_baselines={alice.Room.BaselineCount} bob_baselines={bob.Room.BaselineCount} fresh_baselines={fresh.Room.BaselineCount}");
+        Console.WriteLine($"LIVE PASS join late_join delta_move hp_mp no_op_action inventory_row_reuse equipment_replace_patch removal reconnect ping old_entity={oldEntity} new_entity={fresh.Room.EntityId} alice_baselines={alice.Room.BaselineCount} bob_baselines={bob.Room.BaselineCount} fresh_baselines={fresh.Room.BaselineCount}");
         await fresh.Close();
         await bob.Close();
         return 0;
     }
+    private static bool FreshNested(PlayerState player) => player.Inventory.Count == 1 && player.Inventory.Single() is { Row: 1, ItemId: 1, Quantity: 2 } &&
+        player.Equipment.Count == 1 && player.Equipment.Single() is { Slot: 1, ItemId: 1001, Power: 10 };
 }

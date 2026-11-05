@@ -20,12 +20,14 @@ public partial class GuestRoomHud : Control
     private PanelContainer _debugPanel = null!;
     private IReadOnlyList<PlayerState>? _lastRoster;
     private Label _attributes = null!, _actionFeedback = null!;
+    private Label _inventory = null!, _equipment = null!;
+    private GuestItemIcon _potionIcon = null!, _equipmentIcon = null!;
     private readonly List<Button> _actionButtons = new();
 
     public void Initialize(string host, string port, string name)
     {
         MouseFilter = MouseFilterEnum.Ignore;
-        Size = new Vector2(1120, 824);
+        Size = new Vector2(1120, 884);
         var header = new HBoxContainer();
         header.AddThemeConstantOverride("separation", 18);
         AddMargin(Card(new Vector2(24, 16), new Vector2(1072, 64)), header, 12);
@@ -69,7 +71,7 @@ public partial class GuestRoomHud : Control
 
         var business = new VBoxContainer();
         business.AddThemeConstantOverride("separation", 6);
-        AddMargin(Card(new Vector2(24, 724), new Vector2(1072, 76)), business, 8);
+        AddMargin(Card(new Vector2(24, 724), new Vector2(1072, 136)), business, 8);
         var actions = new HBoxContainer();
         actions.AddThemeConstantOverride("separation", 8);
         business.AddChild(actions);
@@ -89,6 +91,30 @@ public partial class GuestRoomHud : Control
         _actionFeedback.ClipText = true;
         _actionFeedback.VerticalAlignment = VerticalAlignment.Center;
         actions.AddChild(_actionFeedback);
+        var items = new HBoxContainer();
+        items.AddThemeConstantOverride("separation", 8);
+        business.AddChild(items);
+        _potionIcon = new GuestItemIcon { ItemId = 1 };
+        items.AddChild(_potionIcon);
+        _inventory = Text("INVENTORY · —", 12);
+        _inventory.CustomMinimumSize = new Vector2(130, 40);
+        _inventory.VerticalAlignment = VerticalAlignment.Center;
+        items.AddChild(_inventory);
+        _equipmentIcon = new GuestItemIcon { ItemId = 1001 };
+        items.AddChild(_equipmentIcon);
+        _equipment = Text("EQUIPMENT · —", 12);
+        _equipment.CustomMinimumSize = new Vector2(170, 40);
+        _equipment.VerticalAlignment = VerticalAlignment.Center;
+        items.AddChild(_equipment);
+        foreach ((string kind, string caption) in new[] {
+            ("pickup", "+ Potion"), ("use_potion", "Drink"), ("equip", "Switch weapon"), ("upgrade", "+ Power") })
+        {
+            var button = new Button { Text = caption, CustomMinimumSize = new Vector2(96, 32), Disabled = true };
+            SkinButton(button);
+            button.Pressed += () => ActionRequested?.Invoke(kind);
+            items.AddChild(button);
+            _actionButtons.Add(button);
+        }
         var footer = new HBoxContainer();
         footer.AddThemeConstantOverride("separation", 16);
         business.AddChild(footer);
@@ -136,12 +162,21 @@ public partial class GuestRoomHud : Control
         string outgoing = proposal is null ? "—" : FormattableString.Invariant($"seq {proposal.Sequence} → ({proposal.X:F1}, {proposal.Y:F1})");
         string authoritative = confirmed is null ? "—" : FormattableString.Invariant($"seq {confirmed.Sequence} @ ({confirmed.X:F1}, {confirmed.Y:F1})");
         _attributes.Text = confirmed is null ? "HP — / MP —" : $"HP {confirmed.Hp}/{confirmed.HpMax}   MP {confirmed.Mp}/{confirmed.MpMax}";
+        InventoryItem? potion = confirmed?.Inventory.FirstOrDefault();
+        EquipmentItem? equipment = confirmed?.Equipment.FirstOrDefault();
+        _inventory.Text = confirmed is null ? "INVENTORY · —" : potion is null ? "INVENTORY\nEmpty" : $"INVENTORY\nPotion × {potion.Quantity}";
+        _inventory.TooltipText = potion is null ? "An empty authorized table" : $"Table 200 · row {potion.Row}\nRow lifetime {potion.Incarnation}";
+        _equipment.Text = equipment is null ? "EQUIPMENT · —" : $"EQUIPMENT\n{(equipment.ItemId == 1001 ? "Blade" : "Staff")} · Power {equipment.Power}";
+        _equipment.TooltipText = equipment is null ? "" : $"Container 300 · slot {equipment.Slot}\nEntity {equipment.EntityId} · lifetime {equipment.Incarnation}";
+        _potionIcon.Modulate = potion is null ? new Color(0.5f, 0.5f, 0.5f) : Colors.White;
+        _equipmentIcon.ItemId = equipment?.ItemId ?? 0;
+        _equipmentIcon.QueueRedraw();
         _actionFeedback.Text = room.PendingAction is ActionProposal pending ? $"Awaiting action #{pending.Sequence}…" : room.ActionFeedback ?? "Server-owned attributes";
         foreach (Button button in _actionButtons)
         {
             button.Disabled = !room.HasSnapshot || !connected || room.PendingAction is not null;
         }
-        _details.Text = $"TCP peer: {transport.PeerEndpoint ?? "—"}\nARK2 / Protobuf v1\nEntity GUID: {room.EntityId}\nBaselines / deltas: {room.BaselineCount} / {room.DeltaCount}\nLast room update age: {Milliseconds(session.SnapshotAgeMilliseconds)}\n\n" +
+        _details.Text = $"TCP peer: {transport.PeerEndpoint ?? "—"}\nProtobuf / Entity baseline + delta\nEntity GUID: {room.EntityId}\nBaselines / deltas: {room.BaselineCount} / {room.DeltaCount}\nLast room update age: {Milliseconds(session.SnapshotAgeMilliseconds)}\n\n" +
             $"Move proposal:\n{outgoing}\nServer-confirmed:\n{authoritative}\n\n" +
             $"HP / MP: {(confirmed is null ? "—" : $"{confirmed.Hp}/{confirmed.HpMax} · {confirmed.Mp}/{confirmed.MpMax}")}\n" +
             $"Confirmed action_seq: {confirmed?.ActionSequence.ToString() ?? "—"}\n" +
@@ -158,7 +193,7 @@ public partial class GuestRoomHud : Control
                 $"{(player.Id == room.PlayerId ? "◆ YOU" : "○ PLAYER")} {Fit(player.Name, 84)} #{player.Id}")) +
                 (room.Players.Count > 4 ? $"    +{room.Players.Count - 4}" : "");
             _fullRoster.Text = room.Players.Count == 0 ? "No guests yet." : string.Join("\n\n", room.Players.Select(player =>
-                FormattableString.Invariant($"{(player.Id == room.PlayerId ? "YOU" : "PLAYER")} {Fit(player.Name, 160)} #{player.Id}\nmove seq {player.Sequence}  ({player.X:F1}, {player.Y:F1})\nHP {player.Hp}/{player.HpMax} MP {player.Mp}/{player.MpMax}\naction_seq {player.ActionSequence}")));
+                FormattableString.Invariant($"{(player.Id == room.PlayerId ? "YOU" : "PLAYER")} {Fit(player.Name, 160)} #{player.Id}\nmove seq {player.Sequence}  ({player.X:F1}, {player.Y:F1})\nHP {player.Hp}/{player.HpMax} MP {player.Mp}/{player.MpMax}\nPotions {player.Inventory.FirstOrDefault()?.Quantity ?? 0} · weapon {player.Equipment.FirstOrDefault()?.ItemId ?? 0} · power {player.Equipment.FirstOrDefault()?.Power ?? 0}\naction_seq {player.ActionSequence}")));
         }
     }
 

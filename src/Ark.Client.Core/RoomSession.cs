@@ -2,12 +2,19 @@ using System.Globalization;
 using System.Text;
 using Ark.Client.Protocol;
 using Google.Protobuf;
+using Wire = Ark.Client.Protocol.EntitySync;
 
 namespace Ark.Client.Core;
 
+public sealed record InventoryItem(uint Row, ulong Incarnation, uint ItemId, uint Quantity);
+public sealed record EquipmentItem(uint Slot, long EntityId, ulong Incarnation, uint ItemId, uint Power);
 public sealed record PlayerState(string Id, string Name, double X, double Y, uint Sequence,
     uint Hp = 100, uint Mp = 100, uint HpMax = 100, uint MpMax = 100, uint ActionSequence = 0,
-    ulong EntityId = 0);
+    ulong EntityId = 0)
+{
+    public IReadOnlyList<InventoryItem> Inventory { get; init; } = Array.Empty<InventoryItem>();
+    public IReadOnlyList<EquipmentItem> Equipment { get; init; } = Array.Empty<EquipmentItem>();
+}
 public sealed record MoveProposal(uint Sequence, double X, double Y);
 public sealed record ActionProposal(uint Sequence, string Kind);
 
@@ -17,9 +24,10 @@ public sealed class RoomSession
     public const ushort Join = 60000, Accepted = 60001, Move = 60002,
         Snapshot = 60003, Error = 60004, Ping = 60005, Pong = 60006, Action = 60008, Delta = 60009;
     public const int Width = 960, Height = 540;
-    public const string SchemaId = "ark.guest-player.v1", ClassName = "GuestPlayer";
+    public const string SchemaId = "ark.guest-player", ClassName = "GuestPlayer";
+    public static NestedStreamLimits EntityLimits { get; } = new(new NestedSnapshotLimits(1, 3, 8, 64, 512), 128, 64, 512, 64);
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
-    private sealed record Replica(PlayerState State, ulong Generation, ulong Revision, bool Removed = false);
+    private sealed record Replica(PlayerState State, NestedReplica Receiver, IReadOnlyList<long> EquipmentIds, bool Removed = false);
     private Dictionary<ulong, Replica> _replicas = new();
     private uint _sequence, _actionSequence;
     public string? PlayerId
@@ -76,7 +84,7 @@ public sealed class RoomSession
     public static byte[] JoinFrame(string name)
     {
         ValidateName(name);
-        return MessageFrame(Join, new join_request { Name = name, Room = "lobby", ProtocolVersion = 1 });
+        return MessageFrame(Join, new join_request { Name = name, Room = "lobby", ProtocolVersion = 2 });
     }
     public byte[] MoveFrame(double x, double y)
     {
@@ -108,6 +116,10 @@ public sealed class RoomSession
             "damage" => action_kind.ActionDamage,
             "skill" => action_kind.ActionSkill,
             "rest" => action_kind.ActionRest,
+            "pickup" => action_kind.ActionPickup,
+            "use_potion" => action_kind.ActionUsePotion,
+            "equip" => action_kind.ActionEquip,
+            "upgrade" => action_kind.ActionUpgrade,
             _ => throw new ArgumentException("Unsupported action kind.")
         };
         if (_actionSequence == uint.MaxValue)
@@ -140,7 +152,7 @@ public sealed class RoomSession
             {
                 case Accepted:
                     var accepted = ProtobufMessages.Parse(frame.Body, join_accepted.Parser, join_accepted.Descriptor);
-                    if (PlayerId is not null || accepted.Room != "lobby" || accepted.ProtocolVersion != 1 ||
+                    if (PlayerId is not null || accepted.Room != "lobby" || accepted.ProtocolVersion != 2 ||
                         accepted.Width != Width || accepted.Height != Height || accepted.EntityId == 0 || accepted.EntityId > long.MaxValue)
                     {
                         throw new InvalidDataException("Invalid join acceptance.");
@@ -177,15 +189,15 @@ public sealed class RoomSession
                     var envelopeIds = new HashSet<ulong>();
                     foreach (player_baseline player in delta.Added)
                     {
-                        if (player.State is null || !envelopeIds.Add(player.State.EntityId))
+                        if (player.Binding is null || !envelopeIds.Add(player.Binding.EntityId))
                         {
                             throw new InvalidDataException("Duplicate room entity.");
                         }
                         Add(candidate, player);
                     }
-                    foreach (scalar_delta change in delta.Changed)
+                    foreach (Wire.nested_delta change in delta.Changed)
                     {
-                        if (!envelopeIds.Add(change.EntityId))
+                        if (change.Root is null || change.Root.EntityId <= 0 || !envelopeIds.Add((ulong)change.Root.EntityId))
                         {
                             throw new InvalidDataException("Duplicate room entity.");
                         }
@@ -230,103 +242,94 @@ public sealed class RoomSession
             throw new InvalidDataException("Room message arrived before acceptance or names an unsupported room.");
         }
     }
-    private static void ValidateMetadata(string schema, string className, ulong entity, ulong generation)
+    /// <summary>The sample's fixed field/type projection. Remote values cannot expand it.</summary>
+    public static NestedStreamBinding PlayerBinding(long entityId, ulong incarnation, ulong generation, IReadOnlyList<long> equipmentIds)
     {
-        if (schema != SchemaId || className != ClassName || entity == 0 || entity > long.MaxValue || generation == 0)
+        if (entityId <= 0 || incarnation == 0 || generation == 0 || equipmentIds.Count != 2 ||
+            equipmentIds.Any(id => id <= 0 || id == entityId) || equipmentIds[0] == equipmentIds[1])
         {
-            throw new InvalidDataException("Unsupported scalar identity/schema/generation.");
+            throw new InvalidDataException("Invalid player instance binding.");
         }
+        var equipment = new NestedEntityLayout("GuestEquipment", new Dictionary<uint, NestedScalarType> { [1] = NestedScalarType.UInt32, [2] = NestedScalarType.UInt32 });
+        var fields = new Dictionary<uint, NestedScalarType> { [100] = NestedScalarType.Bytes, [101] = NestedScalarType.Double, [102] = NestedScalarType.Double };
+        for (uint index = 103; index <= 108; index++)
+        {
+            fields.Add(index, NestedScalarType.UInt32);
+        }
+        return new NestedStreamBinding(SchemaId, entityId, incarnation, generation, new NestedEntityLayout(ClassName, fields,
+            new Dictionary<uint, NestedTableLayout> { [200] = new("InventoryItem", new Dictionary<uint, NestedScalarType> { [1] = NestedScalarType.UInt32, [2] = NestedScalarType.UInt32 }) },
+            new Dictionary<uint, IReadOnlyDictionary<long, NestedEntityLayout>> { [300] = new Dictionary<long, NestedEntityLayout> { [equipmentIds[0]] = equipment, [equipmentIds[1]] = equipment } }));
     }
     private static void Add(Dictionary<ulong, Replica> candidate, player_baseline player)
     {
         ValidateId(player.PlayerId);
-        scalar_baseline baseline = player.State ?? throw new InvalidDataException("Missing player state.");
-        ValidateMetadata(baseline.SchemaId, baseline.ClassName, baseline.EntityId, baseline.Generation);
-        if (baseline.Revision == 0)
-        {
-            throw new InvalidDataException("Baseline revision must be positive.");
-        }
-        if (candidate.ContainsKey(baseline.EntityId) || candidate.Values.Any(entry => !entry.Removed && entry.State.Id == player.PlayerId))
+        player_binding instance = player.Binding ?? throw new InvalidDataException("Missing player binding.");
+        if (instance.EntityId == 0 || instance.EntityId > long.MaxValue || candidate.ContainsKey(instance.EntityId) ||
+            candidate.Values.Any(entry => !entry.Removed && entry.State.Id == player.PlayerId))
         {
             throw new InvalidDataException("Duplicate or resurrected identity.");
         }
-        PlayerState state = ReadFields(new PlayerState(player.PlayerId, "", 0, 0, 0, EntityId: baseline.EntityId), baseline.Fields, true);
-        candidate.Add(baseline.EntityId, new Replica(state, baseline.Generation, baseline.Revision));
+        long[] equipmentIds = instance.EquipmentIds.ToArray();
+        NestedStreamBinding binding = PlayerBinding((long)instance.EntityId, instance.Incarnation, instance.Generation, equipmentIds);
+        var receiver = new NestedReplica(binding, EntityLimits);
+        if (player.State is null || receiver.Apply(NestedProtobuf.Decode(player.State, EntityLimits)) != NestedApplyResult.Applied)
+        {
+            throw new InvalidDataException("Invalid player baseline.");
+        }
+        PlayerState state = Project(player.PlayerId, receiver.State!, equipmentIds);
+        candidate.Add(instance.EntityId, new Replica(state, receiver, Array.AsReadOnly(equipmentIds)));
     }
-    private static void Change(Dictionary<ulong, Replica> candidate, scalar_delta delta)
+    private static void Change(Dictionary<ulong, Replica> candidate, Wire.nested_delta input)
     {
-        ValidateMetadata(delta.SchemaId, delta.ClassName, delta.EntityId, delta.Generation);
-        if (!candidate.TryGetValue(delta.EntityId, out Replica? previous))
+        NestedDelta delta = NestedProtobuf.Decode(input, EntityLimits);
+        if (delta.Root.EntityId <= 0 || !candidate.TryGetValue((ulong)delta.Root.EntityId, out Replica? previous))
         {
-            throw new InvalidDataException("Delta names an unknown entity.");
+            throw new InvalidDataException("Delta names an unknown player root.");
         }
-        if (previous.Generation != delta.Generation ||
-            delta.RequiredRevision == 0 || delta.RequiredRevision == ulong.MaxValue || delta.Revision != delta.RequiredRevision + 1 ||
-            (delta.Removed && delta.Fields.Count != 0) || (!delta.Removed && delta.Fields.Count == 0))
+        NestedReplica receiver = previous.Receiver.Fork();
+        NestedApplyResult result = receiver.Apply(delta);
+        if (result == NestedApplyResult.Rejected)
         {
-            throw new InvalidDataException("Scalar revision gap, generation mismatch or invalid tombstone.");
+            throw new InvalidDataException("Invalid nested player delta.");
         }
-        PlayerState state = delta.Removed ? previous.State : ReadFields(previous.State, delta.Fields, false);
-        // Valid stale/duplicate publications never regress state or resurrect a tombstone.
-        if (delta.Revision <= previous.Revision)
+        if (result == NestedApplyResult.Duplicate)
         {
             return;
         }
-        if (previous.Removed || previous.Revision != delta.RequiredRevision)
-        {
-            throw new InvalidDataException("Scalar revision gap or resurrection.");
-        }
+        PlayerState state = delta.Removed ? previous.State : Project(previous.State.Id, receiver.State!, previous.EquipmentIds);
         if (state.Sequence < previous.State.Sequence || state.ActionSequence < previous.State.ActionSequence)
         {
             throw new InvalidDataException("Authoritative sequence moved backwards.");
         }
-        candidate[delta.EntityId] = new Replica(state, delta.Generation, delta.Revision, delta.Removed);
+        candidate[(ulong)delta.Root.EntityId] = new Replica(state, receiver, previous.EquipmentIds, delta.Removed);
     }
-    private static PlayerState ReadFields(PlayerState state, IEnumerable<scalar_field> fields, bool complete)
+    private static PlayerState Project(string playerId, NestedSnapshot snapshot, IReadOnlyList<long> equipmentIds)
     {
-        var seen = new HashSet<uint>();
-        foreach (scalar_field field in fields)
-        {
-            if (!seen.Add(field.Index))
-            {
-                throw new InvalidDataException("Duplicate scalar index.");
-            }
-            scalar_field.ValueOneofCase expected = field.Index switch
-            {
-                100 => scalar_field.ValueOneofCase.StringValue,
-                101 or 102 => scalar_field.ValueOneofCase.DoubleValue,
-                >= 103 and <= 108 => scalar_field.ValueOneofCase.Uint32Value,
-                _ => throw new InvalidDataException("Unknown scalar index.")
-            };
-            if (field.ValueCase != expected)
-            {
-                throw new InvalidDataException("Wrong scalar value type.");
-            }
-            state = field.Index switch
-            {
-                100 => state with { Name = StrictUtf8.GetString(field.StringValue.Span) },
-                101 => state with { X = field.DoubleValue },
-                102 => state with { Y = field.DoubleValue },
-                103 => state with { Sequence = field.Uint32Value },
-                104 => state with { Hp = field.Uint32Value },
-                105 => state with { Mp = field.Uint32Value },
-                106 => state with { HpMax = field.Uint32Value },
-                107 => state with { MpMax = field.Uint32Value },
-                108 => state with { ActionSequence = field.Uint32Value },
-                _ => state
-            };
-        }
-        if (complete && seen.Count != 9)
-        {
-            throw new InvalidDataException("Incomplete scalar baseline.");
-        }
+        NestedEntitySnapshot root = snapshot.Root;
+        var fields = root.Fields;
+        var state = new PlayerState(playerId, StrictUtf8.GetString(fields[100].AsBytes()), fields[101].AsDouble(), fields[102].AsDouble(), fields[103].AsUInt32(),
+            fields[104].AsUInt32(), fields[105].AsUInt32(), fields[106].AsUInt32(), fields[107].AsUInt32(), fields[108].AsUInt32(), (ulong)root.EntityId);
         ValidateName(state.Name);
         ValidatePosition(state.X, state.Y);
         if (state.HpMax == 0 || state.MpMax == 0 || state.Hp > state.HpMax || state.Mp > state.MpMax)
         {
             throw new InvalidDataException("Invalid authoritative HP/MP range.");
         }
-        return state;
+        InventoryItem[] inventory = root.Tables[200].Rows.Select(pair => new InventoryItem(pair.Key, pair.Value.Incarnation,
+            pair.Value.Fields[1].AsUInt32(), pair.Value.Fields[2].AsUInt32())).ToArray();
+        EquipmentItem[] equipment = root.Containers[300].Select(pair => new EquipmentItem(pair.Key, pair.Value.EntityId, pair.Value.Incarnation,
+            pair.Value.Fields[1].AsUInt32(), pair.Value.Fields[2].AsUInt32())).ToArray();
+        if (inventory.Length > 1 || inventory.Any(item => item.Row != 1 || item.ItemId != 1 || item.Quantity is < 1 or > 99) ||
+            equipment.Length != 1 || equipment.Any(item => item.Slot != 1 || item.ItemId is not (1001 or 1002) || item.Power > 100 ||
+                item.EntityId != equipmentIds[(int)item.ItemId - 1001]))
+        {
+            throw new InvalidDataException("Invalid authoritative inventory/equipment projection.");
+        }
+        return state with
+        {
+            Inventory = Array.AsReadOnly(inventory),
+            Equipment = Array.AsReadOnly(equipment)
+        };
     }
     private void Commit(Dictionary<ulong, Replica> candidate)
     {
@@ -335,6 +338,14 @@ public sealed class RoomSession
             !players.Any(player => player.Id == PlayerId && player.EntityId == EntityId && player.Name == Name))
         {
             throw new InvalidDataException("Invalid roster or own identity binding.");
+        }
+        var identities = new HashSet<long>();
+        foreach (Replica entry in candidate.Values)
+        {
+            if (!identities.Add((long)entry.State.EntityId) || entry.EquipmentIds.Any(id => !identities.Add(id)))
+            {
+                throw new InvalidDataException("Overlapping player Entity bindings.");
+            }
         }
         // No externally visible state changes before all envelope validations finish.
         _replicas = candidate;
