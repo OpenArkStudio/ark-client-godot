@@ -128,6 +128,7 @@ against a dedicated empty room. The explicit output directory must be absent or
 empty and outside Git repositories. The bounded nested workload covers movement,
 HP/MP, potion row removal/reuse, equipment replacement/power/identity, both
 resident views, ping and periodic fresh reconnects. Its permanent preparation
-test is `--soak-workload`; duration, cleanup and evidence scopes are in
+test is `--soak-workload`; duration, cleanup and the actual 30-second feature
+result with its separate server-error observation are in
 [bounded local multi-process soak](soak.md). Sustained acceptance remains
 **PENDING** until the 5,000-connection issue is fixed and passes.

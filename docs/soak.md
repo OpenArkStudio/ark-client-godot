@@ -1,6 +1,6 @@
 # Bounded local multi-process soak
 
-> **PENDING:** sustained acceptance of the current nested Entity protocol must wait until the [5,000-connection investigation](https://github.com/OpenArkStudio/arknet/issues/61) is fixed and passes. The tool preparation below is not a sustained-run receipt.
+> **PENDING:** sustained acceptance of the current nested Entity protocol must wait until the [5,000-connection investigation](https://github.com/OpenArkStudio/arknet/issues/61) is fixed and passes. The short feature result below is not sustained acceptance.
 
 Use .NET 8 and a dedicated empty guest-room server built with the matching current
 [protocol](protocol.md). The operator starts and stops that server. After the
@@ -50,6 +50,15 @@ transitions, including capped power and lifetime regressions. The shell fixture
 checks failed, interrupted and stubborn children without networking. These checks
 compile/verify the tool; they do not validate a sustained server run, Godot scene
 or exported package.
+
+On **2026-11-05**, one local 30-second feature check of tool `9342fdf` completed
+28 cycles, 336 moves, 336 actions, 336 matched pongs and three fresh reconnects;
+both residents confirmed every peer phase. Including startup/shutdown, it took
+35 seconds: all clients exited 0, the server exited 0 after SIGINT without force,
+and the listener closed. The server also logged **12 retired-entity deferred-sync
+errors** (`sync delay data failed entity do no exist`); a separate Kernel lifecycle
+fix is in progress. Client green does not mean zero server errors, and long-run
+acceptance remains **PENDING** until the 5,000-connection issue is fixed and passes.
 
 ## Earlier protocol results
 

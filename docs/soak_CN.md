@@ -1,6 +1,6 @@
 # 有界本机多进程持续验收
 
-> **PENDING：**当前嵌套 Entity 协议的持续验收须等待 [5,000 连接调查](https://github.com/OpenArkStudio/arknet/issues/61)修复并通过。下方工具准备不属于持续运行回执。
+> **PENDING：**当前嵌套 Entity 协议的持续验收须等待 [5,000 连接调查](https://github.com/OpenArkStudio/arknet/issues/61)修复并通过。下方短功能结果不属于持续运行验收。
 
 使用 .NET 8 和采用当前匹配[协议](protocol_CN.md)的专用空大厅服务端；服务端由操作者启动和停止。
 连接问题解决且明确安排运行后，按[运行指南](run_CN.md)选择仓库外工具：
@@ -41,6 +41,13 @@ TMPDIR=/absolute/local/test-temp bash tools/test-soak-runner.sh
 永久 C# 小测试覆盖有限计划和合法／非法嵌套状态转换，包括 power 封顶与生命周期回退。Shell fixture
 在无网络条件下检查失败、中断和拒绝退出的子进程。这些检查只编译／验证工具，不证明持续服务端运行、
 Godot 场景或导出包。
+
+**2026-11-05**，工具 `9342fdf` 的一次本机 30 秒功能检查实际完成 28 个循环、336 次移动、
+336 次动作、336 个匹配 pong 和三次新身份重连，双方常驻视图逐阶段确认对方状态。
+含启动／关闭总计 35 秒：客户端全部退出 0，服务端 SIGINT 退出 0，没有强杀，监听端口已关闭。
+服务端另有 **12 条已退役实体的延迟同步错误**（`sync delay data failed entity do no exist`），
+对应 Kernel 生命周期问题正单独修复。客户端通过不等于服务端零错误；长测验收仍为 **PENDING**，
+须先修复并通过 5,000 连接问题。
 
 ## 此前协议的历史结果
 
