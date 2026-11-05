@@ -31,7 +31,8 @@
 
 - **Shared room:** join a pixel-art village, see other guests and move with WASD or arrow keys.
 - **Entity attributes:** HP/MP actions and numeric bars show server-owned state and confirmed changes.
-- **Protobuf synchronization:** install a full baseline on join, then apply scalar deltas and removal markers; inspect baseline/delta counts in the diagnostics panel.
+- **Inventory and equipment:** consume and collect potions, reuse an emptied table row, and switch or strengthen equipment stored as child Entities.
+- **Protobuf synchronization:** install a full baseline on join, then atomically apply field, table and child Entity deltas; inspect baseline/delta counts in the diagnostics panel.
 - **Player identity:** YOU/PLAYER nameplates and distinct ground markers identify yourself and other players.
 - **Network visibility:** inspect RTT, message counts and proposed versus confirmed positions; compare visual smoothing with authoritative positions and try disconnecting/rejoining.
 
@@ -73,10 +74,12 @@ Portable toolchain setup and troubleshooting are in the [run guide](docs/run.md)
 | --- | --- |
 | WASD / arrow keys | Move; both clients see the server-confirmed position |
 | **Take hit** / **Use skill** / **Rest** | Reduce HP by 15 / spend 20 MP / restore 20 HP and MP, within server limits |
-| **Leave** → **Connect**, or **Rejoin** | Join as a fresh guest with initial HP/MP of 100 |
+| **+ Potion** / **Drink** | Collect one potion / consume one to restore up to 10 HP; the last potion removes its row, and collecting again creates a new row lifetime |
+| **Switch weapon** / **+ Power** | Swap Blade and Staff / increase the equipped child's power by one, capped at 100; each weapon keeps its power while unequipped |
+| **Leave** → **Connect**, or **Rejoin** | Join as a fresh guest with 100 HP/MP, two potions and an initial Blade |
 | **NETWORK** / **Visual smoothing** | Inspect synchronization and compare raw positions with eased rendering |
 
-The client proposes actions; ark decides the resulting positions and attributes. Unexpected disconnects retry up to five times. Reconnecting creates fresh guest state. The sample has 16 guest slots and does not provide accounts, persistence, encryption, web export or production capacity validation.
+The client proposes actions; ark decides the resulting positions, attributes and items. Buttons do not update displayed values until a valid server update confirms them. This protocol change requires rebuilding both peers together; only the current contract is supported. Unexpected disconnects retry up to five times, creating fresh guest state. The sample has 16 guest slots and does not provide accounts, persistence, encryption, web export or production capacity validation.
 
 [Data flow](docs/data-sync.md) · [Protocol](docs/protocol.md) · [Tests](docs/validation.md) · [Local soak](docs/soak.md) · [Contribute](AGENTS.md) · [Art credits](docs/third-party-notices.md)
 

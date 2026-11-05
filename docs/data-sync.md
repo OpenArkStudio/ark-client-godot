@@ -1,32 +1,43 @@
 # Observe the network and data flow
 
-The client proposes a target position and a strictly increasing move sequence.
-The ark example validates the sequence and room bounds on its owner thread,
-updates the Kernel-owned player entity, and captures its selected scalar fields.
-New connections install a complete Protobuf room baseline; existing peers receive
-added baselines, coalesced scalar deltas and removal tombstones. Each portable
-`RoomSession` validates a whole room envelope before committing its roster.
-Movement does not broadcast full room baselines. Reconnect discards the old
-replica and installs a fresh baseline; revision gaps close the connection.
+The client proposes movement and business actions. ark validates them on its
+owner thread, changes Kernel-owned scalars, inventory rows and equipment children,
+then publishes an authorized Entity tree. New connections install a complete
+Protobuf baseline; existing peers receive added baselines, nested deltas and root
+tombstones. `NestedReplica` validates each root against its trusted layout;
+`RoomSession` commits the whole room envelope only after every root and player
+projection succeeds. Reconnect installs fresh state; revision gaps close the
+connection. Both peers must be rebuilt for the current [protocol](protocol.md).
 
 ```mermaid
 flowchart LR
-    Input[WASD / arrows] --> Proposal[Client proposal: seq + target]
-    Proposal -->|60002 / ARK2 TCP| Net[ark Net callback / owner thread]
-    Net --> Check[Validate finite bounds + increasing seq]
-    Check -->|Accepted| Kernel[Kernel-owned GuestPlayer state]
-    Check -->|60004 rejected| Error[Visible client error]
-    Action[Take hit / Use skill / Rest] -->|60008: independent seq + kind| ActionCheck[Server validates action / fixed amounts]
-    ActionCheck -->|Accepted| Kernel
-    ActionCheck -->|60004 + action_seq| Rejection[Nonfatal matching-action feedback]
-    Kernel --> Snapshot[Capture selected scalar fields on owner thread]
-    Snapshot -->|60003 baseline on join; 60009 changes on flush| Room[RoomSession: validate whole envelope then commit]
-    Room --> Raw[Optional raw markers + roster + confirmed values]
-    Room --> Stats[Confirmed HP/MP bars + numeric values]
-    Stats --> Delta[Feedback only for received stat deltas]
-    Room --> Display[Display-only easing / raw toggle]
-    Display --> Avatar[Licensed animated sprite + role nameplate]
+    Input[Movement / action buttons] --> Request[Sequence + target or action kind]
+    Request -->|ARK2 TCP| Validate[ark owner thread validates request]
+    Validate -->|Accept| Kernel[Kernel scalars + inventory + equipment]
+    Validate -->|Reject with action sequence| Feedback[Correlated rejection feedback]
+    Kernel --> Publish[Capture authorized tree / coalesce changes]
+    Publish -->|Baseline or nested delta| Candidate[RoomSession forks root receivers]
+    Candidate --> Check[NestedReplica + player projection validation]
+    Check -->|All roots valid| Commit[One room commit]
+    Check -->|Any invalid root| Reconnect[Close / fresh connection and baseline]
+    Commit --> HUD[Confirmed HP/MP + items + roster]
+    Commit --> Display[Display-only position easing]
+    Display --> Avatar[Animated sprites + role nameplates]
 ```
+
+| Entity member | What the demo makes visible |
+| --- | --- |
+| `GuestPlayer` scalar fields | Position, HP/MP, move and action sequences |
+| Inventory table 200, row 1 | Start with two potions; drinking patches quantity, removes the last row, and pickup reuses row 1 with a newer incarnation |
+| Equipment container 300, slot 1 | Switch Blade/Staff by replacing membership; strengthen the current child through a field patch; switching back preserves that child's identity and power |
+
+The generic receiver preserves all nine scalar alternatives and owning byte
+values. A complete authorized snapshot includes empty selected tables/containers.
+Rows carry lifetimes, and container patches preserve child GUID/incarnation;
+history watermarks reject stale reuse. Receiver forks isolate both state and
+history until the room commits. A rejected peer cannot partially confirm your
+action or change your items. [Wire rules and limits](protocol.md) define these
+checks separately from the sample's fixed inventory/equipment layout.
 
 The compact connection card selects the host, port and guest name. YOU text,
 a diamond and double ground ring identify the local ninja; PLAYER text and hollow
@@ -51,10 +62,12 @@ Expand **NETWORK** to compare actual observations:
 | Field | Meaning |
 | --- | --- |
 | TCP peer | Resolved remote endpoint of the current connection; absent before connect |
-| Entity GUID | Actual Kernel uint64 entity identity, distinct from the logical decimal player ID and replaced on rejoin |
+| Entity GUID | Actual positive Kernel entity identity, distinct from the logical decimal player ID and replaced on rejoin |
 | Move proposal | Latest generated move sequence and target, before server confirmation |
 | Server-confirmed | This player's sequence and coordinates in the committed baseline plus deltas |
 | HP / MP and maxima | Required server-owned values; bars and numbers update only from a valid complete room envelope |
+| Inventory / equipment | Confirmed item quantity, equipped weapon and power; item tooltips show row or child lifetime/identity |
+| Baselines / deltas | Committed room envelopes; one full baseline on join, then changes rather than routine full-room broadcasts |
 | Action proposal / pending / action_seq | A separate sequence from movement. Only own matching/newer confirmed `action_seq` resolves acceptance; an exact correlated error resolves rejection without leaving |
 | Last room update age | Monotonic elapsed time since this client applied the latest valid committed room update; not server generation age or one-way latency |
 | App ping RTT | Monotonic time from beginning the ping send call to processing its matching pong on the client owner thread; includes local sends, network transit, server queues/polling and client receive queues/polling |
@@ -71,11 +84,13 @@ pending action. There is no additional send queue and no peer-ACK inference.
 Unavailable observations show an em dash rather than fabricated zero latency.
 Transport counters belong to one `TcpConnection`; a new instance starts at zero.
 Disconnect/rejoin clears proposals, age, pending nonce, RTT and display state.
-It also clears pending business actions without retry. New identities begin at
-the server's HP/MP values. Taking a hit, using a skill or resting does not alter
-client attributes in anticipation. Floating HP/MP amounts compare committed
+It also clears pending business actions without retry. New guests receive
+100 HP/MP, two potions and an initial Blade. Clicking an attribute or item action
+does not anticipate its result: quantity, icons, power and HP/MP stay at the last
+committed values until the server confirms a change. Drinking at full HP still
+consumes a potion; an empty inventory rejects the request nonfatally. Floating HP/MP amounts compare committed
 room states, so a capped no-op creates no fabricated increase/decrease. HP zero
-does not disable demo movement. The request contains no amount or target.
+does not disable demo movement. Action requests contain no amount, item value or target Entity.
 Counter snapshots are immutable and protected by a short transport lock; room,
 RTT and presentation state are mutated only on the client owner thread.
 
