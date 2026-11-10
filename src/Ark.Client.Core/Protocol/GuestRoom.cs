@@ -1777,7 +1777,8 @@ namespace Ark.Client.Protocol {
   /// <summary>
   /// Application-owned instance bindings are separate from untrusted state values.
   /// The field/type projection is fixed by the sample on both sides, not supplied
-  /// by this message. The two declared equipment identities remain fixed per stream.
+  /// by this message. The two declared equipment identities remain fixed per
+  /// stream.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class player_binding : pb::IMessage<player_binding>

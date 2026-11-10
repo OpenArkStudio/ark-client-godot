@@ -54,7 +54,8 @@ message heartbeat {
 
 // Application-owned instance bindings are separate from untrusted state values.
 // The field/type projection is fixed by the sample on both sides, not supplied
-// by this message. The two declared equipment identities remain fixed per stream.
+// by this message. The two declared equipment identities remain fixed per
+// stream.
 message player_binding {
   uint64 entity_id = 1;
   uint64 incarnation = 2;
