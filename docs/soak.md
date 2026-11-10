@@ -1,6 +1,6 @@
 # Bounded local multi-process soak
 
-> **PENDING:** sustained acceptance of the current nested Entity protocol must wait until the [5,000-connection investigation](https://github.com/OpenArkStudio/arknet/issues/61) is fixed and passes. The short feature result below is not sustained acceptance.
+> **PENDING:** the [5,000-connection investigation](https://github.com/OpenArkStudio/arknet/issues/61) is paused. Sustained acceptance of the current nested Entity protocol still requires that issue to be fixed and pass. The short feature result below is not sustained acceptance.
 
 Use .NET 8 and a dedicated empty guest-room server built with the matching current
 [protocol](protocol.md). The operator starts and stops that server. After the
@@ -51,14 +51,18 @@ checks failed, interrupted and stubborn children without networking. These check
 compile/verify the tool; they do not validate a sustained server run, Godot scene
 or exported package.
 
-On **2026-11-05**, one local 30-second feature check of tool `9342fdf` completed
+On **2026-11-05**, one local 30-second feature check of tool `9342fdf`
+against server `c447142527dedfe40213c9ed363080c175defb89` completed
 28 cycles, 336 moves, 336 actions, 336 matched pongs and three fresh reconnects;
 both residents confirmed every peer phase. Including startup/shutdown, it took
 35 seconds: all clients exited 0, the server exited 0 after SIGINT without force,
 and the listener closed. The server also logged **12 retired-entity deferred-sync
-errors** (`sync delay data failed entity do no exist`); a separate Kernel lifecycle
-fix is in progress. Client green does not mean zero server errors, and long-run
-acceptance remains **PENDING** until the 5,000-connection issue is fixed and passes.
+errors** (`sync delay data failed entity do no exist`). Those errors remain part
+of this pre-fix receipt. The Kernel lifecycle fix is merged in
+[ark #292](https://github.com/OpenArkStudio/ark/pull/292) at `7db3640b`;
+this record does not establish post-fix Godot execution. Client green does not
+mean zero server errors in the recorded run. Long-run acceptance remains
+**PENDING** until the paused 5,000-connection issue is fixed and passes.
 
 ## Earlier protocol results
 

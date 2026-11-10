@@ -3,9 +3,9 @@
   "runtime": "Google.Protobuf 3.33.4",
   "sha256": {
     "protocol/entity_sync.proto": "11f83363a400dd6994868d9af8e92018b7e9d2b477a316dcae26762e10e3cb02",
-    "protocol/guest_room.proto": "9ba7736aed5c35ce489cf6683f86f508555960b4611288ddca2ac0b2a48bb07d",
+    "protocol/guest_room.proto": "d6b2448e1c22e22182efcfc357e26997203557ca6f7c45db4a42b5213a17d86c",
     "src/Ark.Client.Core/Protocol/EntitySync.cs": "8a78969e9053ca0f6aa3a3e7af43758528f6f514414212204e4e0a3ab5968817",
-    "src/Ark.Client.Core/Protocol/GuestRoom.cs": "edbea78369aa7a5cc710a69c6fe9b03fdd6746367cdc40a2d0f3c15e94f5b160",
+    "src/Ark.Client.Core/Protocol/GuestRoom.cs": "c21e483148d00dcd6a608b792b503044f4ca9d45808b67b1c2de83b7fc4729fc",
     "tests/fixtures/wire-vectors.json": "fa97df048261c0d2e979c6909328bb474c482b3ffb5e4cf80a55c761207b6286"
   }
 }
