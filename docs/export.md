@@ -1,17 +1,12 @@
 # Local macOS development export
 
-> The recorded export below uses the former scalar room protocol. It does not validate the current nested Entity contract. Export both matching client/server inputs again before using an application bundle. Current project execution is recorded in [Validation](validation.md).
-
-On macOS, use Godot **4.7.2 .NET**, matching **.NET export templates**, and SDK
-**8.0.427**. Select external tools and put the SDK on `PATH` as in
-[run instructions](run.md). Install templates through **Editor > Manage Export
-Templates**. Network access or cached `osx-arm64` / `osx-x64` runtime packs are
-required. For the rendered smoke, start a matching guest-room server with an
-empty lobby and use a graphical desktop.
+Use Godot **4.7.2 .NET**, its matching **.NET export templates**, and SDK **8.0.427**. Select tools and put the SDK on `PATH` as in the [run guide](run.md). Install templates through **Editor > Manage Export Templates**. Export requires network access or cached `osx-arm64` / `osx-x64` runtime packs.
 
 ```sh
 # Choose a new absolute destination; existing apps are preserved.
 bash tools/export-macos.sh /absolute/output/ArkGuestRoom.app
+
+# Start a matching server with an empty lobby, then run two visible app instances.
 EXPORTED_CLIENT="/absolute/output/ArkGuestRoom.app/Contents/MacOS/ARK Guest Room" \
   bash tools/smoke-two-clients.sh 127.0.0.1 19100 --render
 ```
@@ -19,41 +14,16 @@ EXPORTED_CLIENT="/absolute/output/ArkGuestRoom.app/Contents/MacOS/ARK Guest Room
 | Setting | Behavior |
 | --- | --- |
 | `macOS development` | Official Universal 2 debug template; signing and notarization disabled |
-| Bundle | C# assemblies and self-contained runtime for arm64 and x86_64; ETC2/ASTC imports enabled |
+| Bundle | Current nested Entity protocol, C# assemblies and self-contained .NET runtimes for arm64 and x86_64 |
 | Core locks | Separate macOS RID locks; original portable lock and locked restore retained |
 | Export guard | Rejects engine error diagnostics and missing executable/architecture assemblies |
 | `EXPORTED_CLIENT` | Absolute executable path; omits `--path` and uses bundled assets |
-| Smoke output | Logs and captures in the printed temporary directory; omit `--render` for headless |
+| Rendered smoke | Requires a graphical desktop; prints the local logs/capture directory. Omit `--render` for headless execution |
 
-## Recorded local integration
+## Verified scope
 
-The original export inputs match `d8d61a33ad3aed30b376d514fd99ddb3d84a734f`,
-tree `97b95d3efe9ae74ae27e45c83809138f15bb18ba`. Export and portable locked
-restore/build passed with SDK `8.0.427`; those results retain their original
-attribution and were not rerun for the network check below.
+The **2026-11-10** export from client `3f2b1e2` passed two-client integration with ark `7db3640b`, including movement, HP/MP, nested Entity changes, reconnect and normal exit. All 386 bundle files retained their hashes. The clients ran without editor/SDK environment variables. Exact inputs and results are in [Validation](validation.md).
 
-On **2026-11-03**, the same unsigned app was paired with a newly built ARK
-candidate on macOS 27.0.1 arm64, using Godot
-`4.7.2.stable.mono.official.ed1daf0bf`. All 386 app files matched the original
-hashes before and after execution; no package export, template setup, Core tests
-or Editor import was repeated.
+This verifies a local **arm64 development application**. The x86_64 payload is included and inspected, but was not executed. The app is unsigned and unnotarized; strict signature verification fails because the inherited template signature no longer covers the bundle. This does not establish Gatekeeper/download acceptance or production distribution.
 
-| Input / check | Result |
-| --- | --- |
-| ARK candidate | `8bdd734b9837015cab97f022c7258830ee889f47`; tree `491c38bfd5eb6da86eeaf437f2fd1ccecbdbce14` |
-| Fresh server build | Launcher, Bus, Kernel, Net, Utility and guest_room; isolated cache/runtime, loopback port 19492; the owned process loaded this app and all five matching DSOs |
-| Optional plugin flags | `ARK_BUILD_PLUGIN_CONSUL`, `ARK_BUILD_PLUGIN_ETCD_CLIENT`, `ARK_BUILD_PLUGIN_KAFKA`, `ARK_BUILD_PLUGIN_OSSSDK`: all `OFF` |
-| Protocol inputs | Server/client schema and wire vectors matched byte-for-byte; Boost 1.92, installed arknet matching `a0dfe09cd543e75cfb5996e537ce2fa49f2a758f`, matched Protobuf 33.4 headers/protoc/archive |
-| Two exported rendered clients | READY, join, movement and own/peer damage 85/100 → skill 85/80 → rest 100/100 passed; reconnect Alice 2→3 / Bob 1→4 reset attributes and sequences; both clients and runner exited 0 |
-| Captures | Both 1120×824; room, YOU/PLAYER markers and reset HP/MP visually inspected |
-| Server shutdown | SIGINT exit 0 without force; listener released |
-
-This proves only this **unsigned, unnotarized local arm64 development app** on
-loopback. The original export's strict signature check exited 1 because Godot's
-inherited template signature does not cover the bundle; it was not repeated here.
-Execution passed without editor/SDK environment variables.
-Intel, Gatekeeper/download acceptance, Windows/Linux, cross-host behavior and
-production use remain untested. Raw provenance and logs remain in the local receipt.
-
-Official references: [macOS export](https://docs.godotengine.org/en/4.7/tutorials/export/exporting_for_macos.html),
-[Godot .NET downloads](https://godotengine.org/download/macos/).
+Official references: [macOS export](https://docs.godotengine.org/en/4.7/tutorials/export/exporting_for_macos.html), [Godot .NET downloads](https://godotengine.org/download/macos/).
