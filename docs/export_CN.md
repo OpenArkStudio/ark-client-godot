@@ -1,54 +1,29 @@
-# macOS 本地开发包导出
+# 本地 macOS 开发包导出
 
-> 下方导出记录使用旧标量房间协议，不代表当前嵌套 Entity 协议已通过导出验收。使用应用包前须按匹配的两端代码重新导出；当前项目运行结果见[验证](validation_CN.md)。
-
-在 macOS 上使用 Godot **4.7.2 .NET**、匹配的 **.NET 导出模板**和 SDK
-**8.0.427**。按[运行说明](run_CN.md)选择仓库外的工具，并将 SDK 加入 `PATH`。
-通过 **Editor > Manage Export Templates** 安装模板。需要联网获取或已缓存的
-`osx-arm64` / `osx-x64` 运行时包。可见 smoke 还要求图形桌面，以及协议匹配、
-大厅为空的 guest-room 服务端。
+使用 Godot **4.7.2 .NET**、匹配的 **.NET 导出模板**及 SDK **8.0.427**。按[运行指南](run_CN.md)选择工具并将 SDK 加入 `PATH`。通过 **Editor > Manage Export Templates** 安装模板；导出需要网络访问，或已缓存的 `osx-arm64` / `osx-x64` 运行库。
 
 ```sh
-# 指定新的绝对路径；已有应用不会被覆盖。
+# 选择新的绝对路径；保留已有应用。
 bash tools/export-macos.sh /absolute/output/ArkGuestRoom.app
+
+# 先启动匹配的服务端并确保大厅为空，再运行两个有界面的应用实例。
 EXPORTED_CLIENT="/absolute/output/ArkGuestRoom.app/Contents/MacOS/ARK Guest Room" \
   bash tools/smoke-two-clients.sh 127.0.0.1 19100 --render
 ```
 
 | 设置 | 行为 |
 | --- | --- |
-| `macOS development` | 官方 Universal 2 调试模板；关闭签名与公证 |
-| 应用包 | 包含 arm64 / x86_64 的 C# 程序集及独立运行时；启用 ETC2/ASTC 导入 |
-| Core 锁文件 | macOS 使用独立 RID 锁；保留原 portable 锁及锁定还原 |
-| 导出检查 | 拒绝引擎错误诊断、缺失的可执行文件或架构程序集 |
-| `EXPORTED_CLIENT` | 可执行文件绝对路径；不传入 `--path`，使用包内资源 |
-| Smoke 产物 | 日志与截图保存在输出的临时目录；省略 `--render` 即无头运行 |
+| `macOS development` | 官方 Universal 2 debug 模板；关闭签名和公证 |
+| 应用包 | 当前嵌套 Entity 协议、C# 程序集，以及 arm64 和 x86_64 自足 .NET 运行库 |
+| Core 锁文件 | 分别保留 macOS RID 锁文件及原便携锁文件，继续使用锁定还原 |
+| 导出检查 | 拒绝引擎错误诊断，以及缺失可执行文件或任一架构程序集的产物 |
+| `EXPORTED_CLIENT` | 使用绝对可执行路径，不传 `--path`，读取包内素材 |
+| 有界面验收 | 需要图形桌面，打印本机日志/截图目录；省略 `--render` 可无界面运行 |
 
-## 本机联调记录
+## 验证范围
 
-原导出输入与 `d8d61a33ad3aed30b376d514fd99ddb3d84a734f` 一致，tree 为
-`97b95d3efe9ae74ae27e45c83809138f15bb18ba`。导出及 portable 锁定还原／构建曾使用
-SDK `8.0.427` 通过；这些结果保留原归属，没有在以下网络检查中重跑。
+**2026-11-10**，客户端 `3f2b1e2` 的导出包与 ark `7db3640b` 通过双客户端验收，覆盖移动、HP/MP、嵌套 Entity 变化、重连及正常退出。386 个应用文件运行前后摘要一致，运行时未依赖编辑器/SDK 环境变量。准确输入与结果见[验证](validation_CN.md)。
 
-**2026-11-03**，同一未签名应用在 macOS 27.0.1 arm64 上与新构建的 ARK 候选联调，
-Godot 为 `4.7.2.stable.mono.official.ed1daf0bf`。应用的全部 386 个文件在执行前后均匹配
-原哈希；没有重复导出包、准备模板、运行 Core 测试或 Editor import。
+本次仅验证了本机 **arm64 开发应用**。包内包含并检查了 x86_64 内容，但未执行。应用未签名、未公证；模板继承的签名已无法覆盖整个包，因此严格签名校验失败。这不代表已通过 Gatekeeper、下载分发或生产发布验收。
 
-| 输入 / 检查 | 结果 |
-| --- | --- |
-| ARK 候选 | `8bdd734b9837015cab97f022c7258830ee889f47`；tree 为 `491c38bfd5eb6da86eeaf437f2fd1ccecbdbce14` |
-| 新服务端构建 | Launcher、Bus、Kernel、Net、Utility 和 guest_room；独立 cache／runtime，回环端口 19492；自有进程实际加载该 app 和全部五个匹配 DSO |
-| 可选插件开关 | `ARK_BUILD_PLUGIN_CONSUL`、`ARK_BUILD_PLUGIN_ETCD_CLIENT`、`ARK_BUILD_PLUGIN_KAFKA`、`ARK_BUILD_PLUGIN_OSSSDK` 均为 `OFF` |
-| 协议输入 | 两端 schema 与 wire vectors 逐字节一致；Boost 1.92、已安装的 arknet 匹配 `a0dfe09cd543e75cfb5996e537ce2fa49f2a758f`，Protobuf 33.4 头／protoc／archive 匹配 |
-| 两个可见导出客户端 | READY、入房、移动、自身及对方受伤 85/100 → 技能 85/80 → 休息 100/100 通过；Alice 2→3／Bob 1→4 重连后属性与序列重置；客户端与 runner 均退出 0 |
-| 截图 | 两张均为 1120×824；已检查房间、YOU/PLAYER 标记及重置后的 HP/MP |
-| 服务端关闭 | SIGINT 退出 0，没有强杀；监听端口已释放 |
-
-本结果只证明这个**未签名、未公证的本机 arm64 开发应用**在回环环境中的运行。
-原导出的严格签名检查因 Godot 上游模板签名不覆盖应用包而退出 1，本轮没有重跑。
-执行时没有编辑器／SDK 环境变量。
-Intel、Gatekeeper/下载分发、Windows/Linux、跨主机行为与生产用途均未验收。
-详细来源记录和原始日志保存在本地 receipt。
-
-官方参考：[macOS 导出](https://docs.godotengine.org/en/4.7/tutorials/export/exporting_for_macos.html)、
-[Godot .NET 下载](https://godotengine.org/download/macos/)。
+官方参考：[macOS 导出](https://docs.godotengine.org/en/4.7/tutorials/export/exporting_for_macos.html)、[Godot .NET 下载](https://godotengine.org/download/macos/)。

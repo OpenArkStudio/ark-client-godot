@@ -1,49 +1,47 @@
 # 验证
 
-## 本机环境
+**2026-11-10**，使用重新构建的 ark 服务端和两个重新导出的 Godot 客户端，完成房间功能闭环。这是一次有明确结束条件的本机功能验收，不是容量或持续负载测试。
 
-2026-11-05 的功能检查使用 Apple M4 Pro Mac mini、14 个逻辑核心、48 GiB 内存及
-macOS 27.0.1 arm64。工具为 Godot `4.7.2.stable.mono.official.ed1daf0bf`、
-.NET SDK `8.0.427`、protoc `33.4`、Google.Protobuf `3.33.4`，项目目标为 `net8.0`。
+## 测试输入
 
-实现记录于客户端 `1fce4f3` 和 ark `7b219028`，arknet 固定到已验收的
-`d8ff34162cd1b490683f579ef23431068d8b7d8b`。本机执行使用功能工作区及其构建产物，
-发生于发布前；托管检查与合入验收由对应 PR 单独记录，不将本机结果标为生产或 main 执行。
+机器：Apple M4 Pro Mac mini，14 个逻辑核心，48 GiB 内存，macOS 27.0.1（26A434），arm64。
+
+| 输入 | 实际测试值 |
+| --- | --- |
+| ark | `7db3640b3cc3ef46e3ab3f1b356cd33aa6c1736f` |
+| Godot 客户端 | `3f2b1e2e00033fdaf8450854627aa28b66bcfc02` |
+| arknet 固定版本 | `d8ff34162cd1b490683f579ef23431068d8b7d8b` |
+| 原生构建 | Debug，Apple Clang 21.0.0；启动器及五个匹配插件全部重建，并核对实际加载路径和摘要 |
+| 原生依赖 | Boost 1.92.0、OpenSSL 4.1.0；匹配的 Protobuf 33.4 头文件、编译器和静态库 |
+| 客户端工具 | Godot `4.7.2.stable.mono.official.ed1daf0bf`、SDK 8.0.427、Google.Protobuf 3.33.4 |
+| 导出包 | Universal 2 开发应用，包含自足的 .NET 8.0.33 运行库；实际以 arm64 运行 |
+| 协议输入 | 两份规范 schema 和共享向量均与服务端一致；固定版本 protoc 生成校验通过 |
 
 ## 结果
 
 | 检查 | 结果 |
 | --- | --- |
-| 可移植 C# | 22 组永久检查全部通过，包含真实回环传输与连接失败 |
-| 共享协议 | 两份规范 Schema、15 个房间及 13 个标量边界向量与 C++ 逐字节一致；protoc 可精确重建 C# |
-| 原生编解码 | 通用编解码 `f950e246`：GUID64 为 13 个用例／122 项断言，GUID32 为 13／123，包含两种 Windows 宏包含顺序；房间编解码为 8／518 |
-| 原生房间 | 真实启动器／插件与两个 TCP 对端通过行删除／复用、装备替换／补丁、移动、错误、重连和正常退出 |
-| 双 C# 客户端 | 移动、HP/MP、药水行删除／复用、双向换装、独立强化值保留、移除及新身份重连通过；每次连接安装一次房间基线 |
-| Godot 构建／导入 | 构建无警告或错误，资源导入完成 |
-| 两个可见 Godot 客户端 | 双方在重连前观察到自身与对方的行补丁、删除、复用、容器替换、子字段补丁及原有子身份重现 |
-| 界面 | 两个 macOS 视口均截取为 1120 × 884；背包／装备控件、YOU／PLAYER 标记与已确认 HP/MP 显示完整；README 使用已检查的 Alice 截图 |
-| 清理 | 客户端／启动脚本退出 0；服务端 SIGINT 退出 0，未强制终止，监听端口释放 |
+| 入房与移动 | 两位玩家进入同一房间，互相观察到服务端确认的位置 |
+| HP/MP | 双方均观察到自己和对方受伤 85/100 → 技能 85/80 → 休息 100/100 |
+| 嵌套 Entity 增量 | 重连前，双方均观察到表行修改、删除、复用，以及装备替换、子实体修改和重新出现 |
+| 重连基线 | Alice 1→3、Bob 2→4；新身份、背包装备、HP/MP 和动作序号均通过校验 |
+| 界面 | 两张 1120 × 884 截图已检查：YOU/PLAYER 文字、不同标记，以及服务端确认的 HP/MP、药水数量和武器强度 |
+| 导出包身份 | 两个进程均使用导出可执行文件，不传 `--path`，不依赖编辑器/SDK 环境变量；386 个应用文件运行前后摘要一致 |
+| 服务端诊断 | error/warning 级别记录和已销毁 Entity 的更新错误均为 0；断开时的 EOF、停止监听时的取消均为预期 info 记录 |
+| 退出 | 双客户端和测试入口均退出 0；服务端收到 SIGINT 后退出 0，未强制终止，19690 端口已释放 |
 
-服务端在独立的本机回环 TCP 端口 19645 加载实际 Launcher、Bus、Kernel、Net、Utility 和
-访客房间动态库。装备断言同时核对 GUID 与存续期，复用的行号必须使用新存续期。
-UI 值来自已提交状态，不由按钮提前修改。原始日志只保留在本地。
+服务端实际加载了启动器、Bus、Kernel、Net、Utility 和房间插件。默认日志仅输出到控制台，已检查服务端 stdout/stderr 和双方客户端日志。原始日志、截图和完整构建凭据仅留在本机。
 
 ## 复现
 
-启动匹配且为空的 [ark 房间服务端](https://github.com/OpenArkStudio/ark/tree/main/examples/guest_room)，再运行：
+构建并启动匹配的 [ark 房间服务端](https://github.com/OpenArkStudio/ark/tree/main/examples/guest_room)，确保大厅为空，再[导出客户端](export_CN.md)：
 
 ```sh
-bash tools/test-core.sh
-bash tools/check-protocol.sh /path/to/ark
-PROTOC=/path/to/protoc-33.4 bash tools/generate-protocol.sh --check
-bash tools/build.sh
-bash tools/check-engine.sh
-bash tools/test-live.sh 127.0.0.1 19100
-bash tools/smoke-two-clients.sh 127.0.0.1 19100 --render
+bash tools/export-macos.sh /absolute/output/ArkGuestRoom.app
+EXPORTED_CLIENT="/absolute/output/ArkGuestRoom.app/Contents/MacOS/ARK Guest Room" \
+  bash tools/smoke-two-clients.sh 127.0.0.1 19100 --render
 ```
 
-按[运行指南](run_CN.md)选择 `DOTNET` 与 `GODOT`。可见测试需要图形桌面，省略 `--render`
-则以无界面方式执行。本次运行编辑器项目产物，未重新导出应用，见[导出说明](export_CN.md)。
-目前只有这台 Mac，跨机器部署验收暂缓；规模／持续验收以暂停中的
-[5,000 连接调查](https://github.com/OpenArkStudio/arknet/issues/61)解决并通过为前提。
-发布范围与验收标准仍待定。
+协议与便携回归测试的永久入口见[运行指南](run_CN.md)，导出设置和前提见 [macOS 导出](export_CN.md)。
+
+本次仅执行了**未签名、未公证的本机 arm64 开发应用**。x86_64 内容已检查，未运行。Gatekeeper/下载分发、Windows/Linux 客户端和跨机器部署尚未验收。容量及持续负载验收仍等待已暂缓的 [5,000 连接调查](https://github.com/OpenArkStudio/arknet/issues/61)。发布范围与验收标准尚未确定。
